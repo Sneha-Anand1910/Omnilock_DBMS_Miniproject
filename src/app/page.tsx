@@ -1,69 +1,41 @@
-import Image from "next/image";
+import Link from "next/link";
+import { connection } from "next/server";
+import { getDashboard, LOW_STOCK_THRESHOLD } from "@/lib/dashboard";
+import { Icon } from "@/components/omnilock/icons";
+import { RefreshButton } from "@/components/omnilock/shell";
+import { DataTable, EmptyState, Panel, StatCard, StatusBadge } from "@/components/omnilock/ui";
 
-export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+export default async function Home() {
+  await connection();
+  const data = await getDashboard();
+  const stats = data?.stats;
+  return <>
+    <div className="page-heading"><div><p className="eyebrow">YOUR OPERATIONS, AT A GLANCE</p><h1>Dashboard overview</h1><p>Stay on top of your inventory, orders, and everything in between.</p></div><RefreshButton /></div>
+    <div className={`data-banner ${data ? "" : "unavailable"}`} role="status"><span className="connection-dot" /><strong>{data ? "Connected to Neon PostgreSQL" : "Database temporarily unavailable"}</strong><span>{data ? `Snapshot updated ${new Date(data.updated).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })} IST` : "Statistics could not be loaded. Check the server connection and refresh."}</span><span className="banner-tag">{data ? "LIVE DATABASE" : "NO DATA LOADED"}</span></div>
+    <div className="stats-grid">
+      <StatCard label="Total products" value={stats?.products} detail="Products in your catalog" icon="products" />
+      <StatCard label="Total orders" value={stats?.orders} detail="Across all sales channels" icon="orders" />
+      <StatCard label="Available stock" value={stats?.available} detail="On-hand stock minus reserved" icon="inventory" accent="teal" />
+      <StatCard label="Reserved stock" value={stats?.reserved} detail="Units currently held in inventory" icon="lock" accent="violet" />
+      <StatCard label="Active reservations" value={stats?.active} detail="Active and not yet expired" icon="reservations" accent="amber" />
+      <StatCard label="Confirmed orders" value={stats?.confirmed} detail="Orders with confirmed status" icon="fulfillment" accent="teal" />
     </div>
-  );
+    <div className="dashboard-columns"><div className="primary-panels">
+      <Panel title="Recent orders" subtitle="The latest activity across your sales channels" action={<Link className="text-link" href="/orders">Orders <Icon name="arrow" /></Link>}>
+        {!data ? <EmptyState message="Order data is unavailable." /> : !data.orders.length ? <EmptyState message="No orders yet. New orders will appear here." /> : <DataTable headers={["Order", "Customer", "Channel", "Status"]} caption="Six most recent orders"><>{data.orders.map(order => <tr key={order.order_id}><td><strong className="order-id">#{order.order_id}</strong><small>{order.order_date ?? "Date unavailable"}</small></td><td>{order.customer}</td><td><span className="channel">{order.channel?.toLowerCase() ?? "—"}</span></td><td><StatusBadge status={order.status} /></td></tr>)}</></DataTable>}
+        <div className="panel-footnote">Latest 6 orders · Dates as recorded in the database</div>
+      </Panel>
+      <Panel title="Inventory availability" subtitle="Stock by product and warehouse, lowest availability first" action={<Link className="text-link" href="/inventory">Inventory <Icon name="arrow" /></Link>}>
+        {!data ? <EmptyState message="Inventory data is unavailable." /> : !data.inventory.length ? <EmptyState message="No inventory records yet." /> : <DataTable headers={["Product", "Warehouse", "On hand", "Reserved", "Available"]} caption="Inventory availability by product and warehouse"><>{data.inventory.map(item => <tr key={item.inventory_id}><td><strong>{item.product_name}</strong><small>{item.sku}</small></td><td>{item.warehouse}</td><td className="numeric">{item.stock}</td><td className="numeric muted">{item.reserved}</td><td className="numeric"><span className={`stock-value ${item.available <= LOW_STOCK_THRESHOLD ? "stock-low" : ""}`}>{item.available}</span></td></tr>)}</></DataTable>}
+        <div className="panel-footnote">Up to 8 product–warehouse records · Available = on hand − reserved</div>
+      </Panel>
+    </div><div className="secondary-panels">
+      <Panel title="Low-stock alerts" subtitle={`Available stock ≤ ${LOW_STOCK_THRESHOLD} units per location`} action={<span className="alert-count">{stats?.low_stock ?? "—"}</span>}>
+        {!data ? <EmptyState message="Stock alerts are unavailable." /> : !data.alerts.length ? <EmptyState message="All stocked locations are above the alert threshold." /> : <div className="alerts-list">{data.alerts.map(item => <div className="alert-item" key={item.inventory_id}><span className="alert-icon"><Icon name="alert" /></span><div><strong>{item.product_name}</strong><small>{item.warehouse} · {item.sku}</small><span className={`remaining ${item.available <= 0 ? "danger" : ""}`}>{item.available <= 0 ? `${item.available} units available · Out of stock` : `${item.available} units available`}</span></div></div>)}</div>}
+        <div className="panel-footnote">Showing up to 5 alerts · Dashboard threshold: {LOW_STOCK_THRESHOLD}</div>
+      </Panel>
+      <section className="quick-panel"><span className="quick-icon"><Icon name="shipments" /></span><h2>Keep operations moving</h2><p>Find the right workspace for each step of the order lifecycle.</p><Link href="/reservations">Review reservations <Icon name="arrow" /></Link><Link href="/fulfillment">Go to fulfillment <Icon name="arrow" /></Link><Link href="/shipments">Track shipments <Icon name="arrow" /></Link></section>
+      <div className="info-note"><Icon name="lock" /><p><strong>A clear view of your data</strong>This dashboard reads your existing records. Refresh to see the latest changes.</p></div>
+    </div></div>
+  </>;
 }
