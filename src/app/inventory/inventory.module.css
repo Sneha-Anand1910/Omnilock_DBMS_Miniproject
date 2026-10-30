@@ -1,0 +1,17 @@
+.filters { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; align-items: end; gap: 16px; padding: 0 20px 18px; }
+.search { min-width: 0; }
+.warehouse { min-width: 0; }
+.filters label { display: block; margin-bottom: 7px; font-size: var(--text-secondary); font-weight: 550; color: #52637a; }
+.filters input, .filters select { width: 100%; height: 44px; min-width: 0; padding: 10px 12px; border: 1px solid #dce3ed; border-radius: 7px; background: #fff; color: #354359; font: inherit; font-size: var(--text-normal); }
+.filters input::placeholder { color: #8793a4; }
+.filters button:disabled { cursor: default; }
+.results { padding: 0 20px 16px; color: #68778e; font-size: var(--text-secondary); }
+.quantity { display: inline-block; border-radius: 4px; padding: 4px 8px; font-weight: 600; }
+.available { background: #ebf8f3; color: #248b72; }
+.low { background: #fff6e3; color: #956116; }
+.out { background: #fceeee; color: #ad3d3d; }
+@media (max-width: 760px) { .filters { grid-template-columns: minmax(0, 1fr); padding-inline: 15px; gap: 16px; } .results { padding-inline: 15px; } }
+
+.filters > button { height: 44px; }
+.filters label { line-height: 1.5; }
+
