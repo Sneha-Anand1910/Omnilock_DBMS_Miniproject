@@ -1,0 +1,10 @@
+.sections { display: grid; gap: 24px; min-width: 0; }
+.form { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; align-items: end; gap: 16px; padding: 0 20px 18px; margin: 0; min-width: 0; border: 0; }
+.form label { display: flex; flex-direction: column; gap: 8px; min-width: 0; font-size: 13px; color: #52637a; }
+.form input, .form select { height: 44px; width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid #dce3ed; border-radius: 7px; background: #fff; color: #354359; font-size: 14px; }
+.form button { min-height: 44px; white-space: normal; }
+.hint { margin: 0; padding: 0 20px 18px; color: #68778e; font-size: 13px; line-height: 1.6; }
+.notice { padding: 14px 18px; margin-bottom: 20px; border-radius: 7px; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.error { color: #ad3d3d; background: #fceeee; }
+.success { color: #247a65; background: #ebf8f3; }
+@media (max-width: 760px) { .form { grid-template-columns: minmax(0, 1fr); padding-inline: 15px; } }
