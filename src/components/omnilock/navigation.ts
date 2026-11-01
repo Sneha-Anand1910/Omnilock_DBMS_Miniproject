@@ -8,6 +8,7 @@ export const navigation = [
   { slug: "payments", label: "Payments", icon: "payments" },
   { slug: "fulfillment", label: "Fulfillment", icon: "fulfillment" },
   { slug: "shipments", label: "Shipments", icon: "shipments" },
+  { slug: "tickets", label: "Support Tickets", icon: "orders", group: "SUPPORT" },
   { slug: "customers", label: "Customers", icon: "customers", group: "DIRECTORY" },
   { slug: "categories", label: "Categories", icon: "categories" },
 ];

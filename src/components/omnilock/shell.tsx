@@ -28,7 +28,9 @@ export function Sidebar({ open, close }: { open: boolean; close: () => void }) {
 export function Header({ open, expanded }: { open: () => void; expanded: boolean }) {
   const pathname = usePathname();
   const title = navigation.find(item => `/${item.slug}` === pathname)?.label ?? "Workspace";
-  return <header className="header"><div className="breadcrumb"><button className="mobile-menu icon-button" aria-label="Open navigation" aria-expanded={expanded} aria-controls="main-navigation" onClick={open}><Icon name="menu" /></button><span>Workspace</span><span className="divider">/</span><strong>{title}</strong></div><div className="header-right"><span className="environment">Development workspace</span><span className="avatar" title="OmniLock workspace">OL</span></div></header>;
+  const isTicketPage = pathname === "/tickets" || pathname.startsWith("/tickets/");
+  const ticketChild = pathname === "/tickets/new" ? "Create Ticket" : pathname === "/tickets" ? null : "Ticket Details";
+  return <header className="header"><div className="breadcrumb" style={isTicketPage ? { minWidth: 0, gap: 10 } : undefined}><button className="mobile-menu icon-button" aria-label="Open navigation" aria-expanded={expanded} aria-controls="main-navigation" onClick={open}><Icon name="menu" /></button>{isTicketPage ? <nav aria-label="Breadcrumb" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px 8px", minWidth: 0, fontSize: 13, lineHeight: "20px" }}><Link href="/">Workspace</Link><span className="divider" aria-hidden="true">/</span>{ticketChild ? <><Link href="/tickets">Support Tickets</Link><span className="divider" aria-hidden="true">/</span><strong aria-current="page">{ticketChild}</strong></> : <strong aria-current="page">Support Tickets</strong>}</nav> : <><span>Workspace</span><span className="divider">/</span><strong>{title}</strong></>}</div><div className="header-right"><span className="environment">Development workspace</span><span className="avatar" title="OmniLock workspace">OL</span></div></header>;
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
