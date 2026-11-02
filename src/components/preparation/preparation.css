@@ -1,0 +1,43 @@
+/* Uniquely prefixed, ordinary CSS: compatible with the existing Tailwind loader.
+   Every selector is confined to the Fulfillment/Shipment directory workspace. */
+.ol-preparation { display: grid; grid-template-columns: minmax(0,1fr); align-content: start; gap: 22px; min-width: 0; font-size: 14px; }
+.ol-preparation .page-heading { margin-bottom: 0; }
+.ol-preparation .page-heading p:not(.eyebrow) { font-size: 14px; }
+.ol-preparation .panel, .ol-preparation .table-scroll { min-width: 0; }
+.ol-preparation .panel-heading { flex-wrap: wrap; }
+.ol-preparation .panel-heading p { font-size: 13px; line-height: 1.6; }
+.ol-preparation .button { min-height: 44px; font-size: 14px; }
+.ol-preparation .button:disabled { cursor: not-allowed; }
+.ol-preparation .ol-preparation-form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; align-items: start; margin: 0; padding: 0 20px 20px; }
+.ol-preparation .ol-preparation-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.ol-preparation .ol-preparation-field label { display: block; position: static; margin: 0; font-size: 13px; color: #52637a; line-height: 20px; }
+.ol-preparation .ol-preparation-field input, .ol-preparation .ol-preparation-field select, .ol-preparation .ol-preparation-field textarea { display: block; position: static; width: 100%; min-width: 0; margin: 0; padding: 10px 12px; border: 1px solid #dce3ed; border-radius: 7px; background: #fff; color: #354359; font: inherit; font-size: 14px; line-height: 22px; }
+.ol-preparation .ol-preparation-field input, .ol-preparation .ol-preparation-field select { height: 44px; }
+.ol-preparation .ol-preparation-field textarea { min-height: 100px; resize: vertical; }
+.ol-preparation .ol-preparation-wide { grid-column: 1/-1; }
+.ol-preparation .ol-preparation-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.ol-preparation .ol-preparation-filters { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: end; gap: 14px; padding: 0 20px 20px; margin: 0; }
+.ol-preparation th, .ol-preparation td, .ol-preparation .empty-state { font-size: 14px; }
+.ol-preparation .ol-preparation-cell { min-width: 140px; max-width: 300px; white-space: normal; overflow-wrap: anywhere; }
+.ol-preparation .ol-preparation-body { padding: 0 20px 20px; font-size: 14px; line-height: 1.6; }
+.ol-preparation .ol-preparation-notice { padding: 14px 18px; border-radius: 7px; line-height: 1.6; overflow-wrap: anywhere; }
+.ol-preparation .ol-preparation-error { color: #ad3d3d; background: #fceeee; }
+.ol-preparation .ol-preparation-success { color: #247a65; background: #ebf8f3; }
+.ol-preparation .ol-preparation-delete { color: #ad3d3d; }
+.ol-preparation .ol-preparation-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid #edf0f5; padding: 16px 20px; }
+.ol-preparation .ol-preparation-footnote { margin: 0; padding: 0 20px 16px; color: #68778e; font-size: 13px; line-height: 1.6; }
+@media (max-width: 760px) {
+  .ol-preparation .ol-preparation-form, .ol-preparation .ol-preparation-filters { grid-template-columns: minmax(0,1fr); padding-inline: 15px; }
+  .ol-preparation .page-heading { flex-wrap: wrap; }
+}
+
+.ol-preparation .ol-preparation-editor { min-width: 0; }
+.ol-preparation .ol-preparation-product-filters { grid-template-columns: minmax(0,2fr) minmax(0,1fr) auto auto; }
+@media (max-width: 1100px) { .ol-preparation .ol-preparation-product-filters { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 760px) { .ol-preparation .ol-preparation-product-filters { grid-template-columns: minmax(0,1fr); } }.ol-preparation .ol-preparation-filters { grid-template-columns: minmax(0,2fr) minmax(0,1fr) auto auto; }
+.ol-preparation .ol-preparation-notice { background: #eef4fb; color: #40516a; }
+.ol-preparation .ol-preparation-error { color: #ad3d3d; background: #fceeee; }
+.ol-preparation .ol-preparation-success { color: #247a65; background: #ebf8f3; }
+.ol-preparation td small, .ol-preparation .badge { font-size: 13px; }
+@media (max-width: 1100px) { .ol-preparation .ol-preparation-filters { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 760px) { .ol-preparation .ol-preparation-filters { grid-template-columns: minmax(0,1fr); } }
