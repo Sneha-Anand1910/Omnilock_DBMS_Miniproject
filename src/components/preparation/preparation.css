@@ -1,6 +1,14 @@
 /* Uniquely prefixed, ordinary CSS: compatible with the existing Tailwind loader.
    Every selector is confined to the Fulfillment/Shipment directory workspace. */
 .ol-preparation { display: grid; grid-template-columns: minmax(0,1fr); align-content: start; gap: 22px; min-width: 0; font-size: 14px; }
+.ol-preparation .ol-delivery-timeline { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 12px; list-style: none; margin: 0 0 20px; padding: 0; }
+.ol-preparation .ol-delivery-timeline li { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; border-top: 3px solid #dce3ed; padding-top: 10px; color: #68778e; overflow-wrap: anywhere; }
+.ol-preparation .ol-delivery-timeline li.ol-delivery-complete { border-color: #249d94; color: #247a65; }
+.ol-preparation .ol-delivery-timeline li[aria-current="step"] { font-weight: 600; }
+.ol-preparation .ol-delivery-timeline li > span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #eef4fb; font-size: 13px; }
+.ol-preparation .ol-delivery-timeline strong { font-size: 14px; text-transform: capitalize; }
+.ol-preparation .ol-delivery-timeline small { font-size: 13px; line-height: 1.5; }
+@media (max-width: 760px) { .ol-preparation .ol-delivery-timeline { grid-template-columns: minmax(0,1fr); } .ol-preparation .ol-delivery-timeline li { border-top: 0; border-left: 3px solid #dce3ed; padding: 4px 0 4px 12px; } }
 .ol-preparation .page-heading { margin-bottom: 0; }
 .ol-preparation .page-heading p:not(.eyebrow) { font-size: 14px; }
 .ol-preparation .panel, .ol-preparation .table-scroll { min-width: 0; }

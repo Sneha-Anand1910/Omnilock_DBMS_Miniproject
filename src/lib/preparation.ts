@@ -48,7 +48,11 @@ const eligibleItems = `eligible_items AS (
 )`;
 const base = (kind: Kind) => kind === "fulfillment" ? `
  SELECT f.fulfillment_id AS id,f.order_item_id,oi.order_id,oi.quantity,p.product_name,c.name AS customer,
- f.status,f.fulfillment_date FROM public.fulfillment f JOIN public.order_item oi USING(order_item_id)
+ f.status,f.fulfillment_date,
+ (f.status='PACKED' AND EXISTS (SELECT 1 FROM eligible_items e WHERE e.order_item_id=f.order_item_id)
+  AND EXISTS (SELECT 1 FROM public.shipment s WHERE s.fulfillment_id=f.fulfillment_id AND s.status='PENDING'
+    AND s.ship_date IS NULL AND s.delivery_date IS NULL)) AS dispatch_eligible
+ FROM public.fulfillment f JOIN public.order_item oi USING(order_item_id)
  JOIN public.orders o USING(order_id) JOIN public.product p ON p.product_id=oi.product_id JOIN public.customer c ON c.customer_id=o.customer_id
 ` : `
  SELECT s.shipment_id AS id,s.fulfillment_id,f.order_item_id,oi.order_id,oi.quantity,p.product_name,c.name AS customer,
@@ -60,6 +64,11 @@ const readiness = `to_regprocedure('public.stage_a_create_fulfillment(integer)')
  AND to_regprocedure('public.stage_a_update_fulfillment(integer,text,text)') IS NOT NULL
  AND to_regprocedure('public.stage_a_create_shipment(integer,text,text)') IS NOT NULL
  AND to_regprocedure('public.stage_a_update_shipment(integer,text,text,text,text,text,text)') IS NOT NULL`;
+const dispatchReadiness = `to_regclass('public.inventory_dispatch') IS NOT NULL
+ AND to_regprocedure('public.stage_b_dispatch_fulfillment(integer,text)') IS NOT NULL
+ AND to_regprocedure('public.stage_b_transition_shipment(integer,text,text)') IS NOT NULL
+ AND to_regprocedure('public.stage_b_assert_dispatched(integer)') IS NOT NULL
+ AND to_regprocedure('public.stage_b_guard_consumption()') IS NOT NULL`;
 
 export async function listPreparation(request: Request, kind: Kind) {
   try {
@@ -77,14 +86,15 @@ export async function listPreparation(request: Request, kind: Kind) {
     SELECT COALESCE((SELECT json_agg(paged ORDER BY id DESC) FROM paged),'[]'::json) AS records,
       (SELECT count(*)::integer FROM filtered) AS total,
       COALESCE((SELECT json_agg(options ORDER BY order_id,id) FROM options),'[]'::json) AS eligible,
-      (${readiness}) AS ready`, [search,status,pageSize,(page-1)*pageSize]);
+      (${readiness}) AS ready, (${dispatchReadiness}) AS "stageBReady"`, [search,status,pageSize,(page-1)*pageSize]);
     return json({ success:true,...rows[0],page,pageSize });
   } catch(error) { return failure(error); }
 }
 export async function getPreparation(value: string, kind: Kind) {
   try {
     const id=pathId(value); const { sql }=await import("@/lib/neon-http");
-    const rows=await sql.query(`SELECT r.*, (${readiness}) AS ready FROM (${base(kind)}) r WHERE id=$1`,[id]);
+    const rows=await sql.query(`WITH ${eligibleItems} SELECT r.*, (${readiness}) AS ready,
+      (${dispatchReadiness}) AS "stageBReady" FROM (${base(kind)}) r WHERE id=$1`,[id]);
     if (!rows.length) return json({error:"Record not found."},404);
     return json({success:true,record:rows[0]});
   } catch(error) { return failure(error); }

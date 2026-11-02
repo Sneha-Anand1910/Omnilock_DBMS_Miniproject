@@ -10,11 +10,13 @@ type RecordRow = {
   customer: string; quantity: number; status: string; fulfillment_id?: number;
   fulfillment_status?: string; courier?: string; tracking_no?: string | null;
   fulfillment_date?: string | null; ship_date?: string | null; delivery_date?: string | null; ready?: boolean;
+  stageBReady?: boolean; dispatch_eligible?: boolean;
 };
 type Option = { id: number; order_id: number; order_item_id: number; quantity: number; product_name: string; customer: string };
 type Query = { search: string; status: string; page: number };
 const fulfillmentStatuses = ["PENDING", "PROCESSING", "PACKED", "FULFILLED", "CANCELLED"];
 const shipmentStatuses = ["PENDING", "SHIPPED", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED", "RETURNED", "CANCELLED"];
+const deliverySteps = ["PENDING", "SHIPPED", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED"];
 class ApiError extends Error { constructor(message: string, public status: number) { super(message); } }
 async function request(url: string, init?: RequestInit): Promise<Record<string, unknown>> {
   const response = await fetch(url, { cache: "no-store", ...init });
@@ -44,6 +46,7 @@ export default function PreparationManager({ kind }: { kind: Kind }) {
   const [eligible, setEligible] = useState<Option[]>([]);
   const [total, setTotal] = useState(0);
   const [ready, setReady] = useState(false);
+  const [stageBReady, setStageBReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [selected, setSelected] = useState("");
@@ -70,17 +73,20 @@ export default function PreparationManager({ kind }: { kind: Kind }) {
       const options = result.eligible as Option[];
       if (options.some(option => !Number.isInteger(option.id) || option.id < 1 || typeof option.product_name !== "string")) throw new Error("Invalid eligibility response.");
       if (!current()) return;
-      setReady(result.ready); setEligible(options);
+      setReady(result.ready); setStageBReady(result.stageBReady === true); setEligible(options);
       const last = Math.max(1, Math.ceil(result.total / 10));
       if (query.page > last) { setQuery(value => ({ ...value, page: last })); return; }
       setRows(records); setTotal(result.total);
-    }).catch(error => { if (current()) { setLoadError(errorText(error)); setReady(false); setEligible([]); } })
+    }).catch(error => { if (current()) { setLoadError(errorText(error)); setReady(false); setStageBReady(false); setEligible([]); } })
       .finally(() => { if (current()) setLoading(false); });
     return () => controller.abort();
   }, [kind, query, revision]);
   function apply(next: Query) { active.current?.abort(); setLoading(true); setQuery(next); }
   function refresh() { active.current?.abort(); setLoading(true); setRevision(value => value + 1); }
-  function refreshVisible() { apply({ search: search.trim(), status, page: search.trim() === query.search && status === query.status ? query.page : 1 }); }
+  function refreshVisible() {
+    apply({ search: search.trim(), status, page: search.trim() === query.search && status === query.status ? query.page : 1 });
+    if (details) void openDetails(details.id);
+  }
   async function openDetails(id: number) {
     if (inFlight.current) return;
     inFlight.current = true; setBusy(true); setNotice(null);
@@ -92,14 +98,20 @@ export default function PreparationManager({ kind }: { kind: Kind }) {
     } catch (error) { setDetails(null); setNotice({ error: true, text: errorText(error) }); }
     finally { inFlight.current = false; setBusy(false); }
   }
-  async function mutate(body: Record<string, unknown>, id?: number) {
-    if (inFlight.current || !ready || uncertain) return;
+  async function mutate(body: Record<string, unknown>, id?: number, action?: "dispatch" | "transition") {
+    if (inFlight.current || !(action ? stageBReady : ready) || uncertain) return;
     inFlight.current = true; setBusy(true); setNotice(null);
     try {
-      await request("/api/" + kind + (id === undefined ? "" : "/" + id), { method: id === undefined ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      setNotice({ error: false, text: id === undefined ? "Preparation record created. Nothing has been dispatched." : "Preparation information updated. Stock and order/payment states are unchanged." });
+      const result = await request("/api/" + kind + (id === undefined ? "" : "/" + id), { method: action === "dispatch" ? "POST" : action === "transition" ? "PUT" : id === undefined ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      setNotice({ error: false, text: action === "dispatch"
+        ? result.alreadyDispatched === true ? "This fulfillment was already dispatched. No additional stock was deducted." : "Inventory dispatched atomically and fulfillment completed. Payment records are unchanged."
+        : action === "transition" ? "Shipment moved to " + String(body.newStatus).toLowerCase().replaceAll("_", " ") + "."
+        : id === undefined ? "Preparation record created. Nothing has been dispatched." : "Preparation information updated. Stock and order/payment states are unchanged." });
       if (id === undefined) { setSelected(""); setCourier(""); setTracking(""); }
-      else setDetails(null);
+      else if (action) {
+        try { setDetails(record((await request("/api/" + kind + "/" + id)).record)); }
+        catch { setDetails(null); }
+      } else setDetails(null);
     } catch (error) {
       const unknown = !(error instanceof ApiError) || error.status >= 500;
       if (unknown) setUncertain(true);
@@ -118,12 +130,16 @@ export default function PreparationManager({ kind }: { kind: Kind }) {
     void mutate(fulfillment ? { orderItemId: Number(selected) } : { fulfillmentId: Number(selected), courier, trackingNo: tracking });
   }
   const disabled = busy || loading || !ready || uncertain;
+  const dispatchDisabled = busy || loading || !stageBReady || uncertain || !details?.stageBReady;
   const pages = Math.max(1, Math.ceil(total / 10));
   const next = details?.status === "PENDING" ? "PROCESSING" : details?.status === "PROCESSING" ? "PACKED" : null;
+  const deliveryIndex = details ? deliverySteps.indexOf(details.status) : -1;
+  const nextShipment = deliveryIndex >= 0 ? deliverySteps[deliveryIndex + 1] : undefined;
   return <div className="ol-preparation">
-    <div className="page-heading"><div><p className="eyebrow">STAGE A · PREPARATION ONLY</p><h1>{title}</h1><p>{fulfillment ? "Prepare confirmed order items. Dispatch is not implemented." : "Manage pending shipment details. These shipments are not dispatched."}</p></div><button className="button" disabled={busy || loading} onClick={refreshVisible}>Refresh data</button></div>
-    <div className="ol-preparation-notice">No inventory is deducted or released. Orders and payments are not changed. {fulfillment && "Starting fulfillment blocks order cancellation under the existing rules."}</div>
+    <div className="page-heading"><div><p className="eyebrow">PREPARATION · DISPATCH · DELIVERY</p><h1>{title}</h1><p>{fulfillment ? "Prepare confirmed order items and dispatch their reserved inventory." : "Prepare shipments and track delivery from pending to delivered."}</p></div><button className="button" disabled={busy || loading} onClick={refreshVisible}>Refresh data</button></div>
+    <div className="ol-preparation-notice">Preparation does not change stock. Dispatch deducts physical and reserved stock once. Create a pending shipment before dispatching its packed fulfillment. Active fulfillment blocks order cancellation; returns and automatic refunds are not supported here.</div>
     {!loading && !loadError && !ready && <div role="status" className="ol-preparation-notice ol-preparation-error">Read-only mode: apply the Stage A migration manually to enable preparation actions.</div>}
+    {!loading && !loadError && !stageBReady && <div role="status" className="ol-preparation-notice">Dispatch and delivery controls are disabled until the Stage B migration is applied manually. Stage A preparation remains available.</div>}
     {notice && <div role={notice.error ? "alert" : "status"} className={"ol-preparation-notice " + (notice.error ? "ol-preparation-error" : "ol-preparation-success")}>{notice.text}</div>}
     {uncertain && <div className="ol-preparation-actions"><button className="button" disabled={busy || loading || !!loadError} onClick={() => { setUncertain(false); setNotice(null); }}>I have checked the latest records</button></div>}
     <Panel title={fulfillment ? "Start fulfillment preparation" : "Create pending shipment"} subtitle={fulfillment ? "Eligible items have confirmed orders, successful unrefunded payment and matching confirmed inventory holds." : "Only eligible PACKED fulfillments without an active shipment are listed."}>
@@ -143,7 +159,37 @@ export default function PreparationManager({ kind }: { kind: Kind }) {
     </Panel>
     {details && <div ref={detailPanel} tabIndex={-1} className="ol-preparation-editor"><Panel title={title + " #" + details.id} subtitle={"Order #" + details.order_id + " · Item #" + details.order_item_id} action={<button className="button" disabled={busy} onClick={() => setDetails(null)}>Close</button>}>
       <div className="ol-preparation-body"><p>{details.customer} · {details.product_name} × {details.quantity}</p><StatusBadge status={details.status} /><p>{fulfillment ? "Fulfillment date: " + dateText(details.fulfillment_date) : "Fulfillment #" + details.fulfillment_id + " · Ship date: " + dateText(details.ship_date) + " · Delivery date: " + dateText(details.delivery_date)}</p></div>
-      {fulfillment ? <div className="ol-preparation-body">{next ? <button className="button primary" disabled={disabled || !details.ready} onClick={() => { if (window.confirm("Move fulfillment to " + next + "? This is preparation only; stock will not change.")) void mutate({ currentStatus: details.status, newStatus: next }, details.id); }}>Mark {next.toLowerCase()}</button> : <p>No further Stage A transition is available. Dispatch and cancellation actions are not offered here.</p>}</div> : details.status === "PENDING" && details.fulfillment_status === "PACKED" && !details.ship_date && !details.delivery_date ? <form className="ol-preparation-form" onSubmit={event => { event.preventDefault(); void mutate({ currentStatus: "PENDING", newStatus: "PENDING", courier: editCourier, trackingNo: editTracking, expectedCourier: details.courier, expectedTrackingNo: details.tracking_no ?? null }, details.id); }}><div className="ol-preparation-field"><label htmlFor="edit-courier">Courier *</label><input id="edit-courier" required maxLength={100} value={editCourier} disabled={disabled} onChange={event => setEditCourier(event.target.value)} /></div><div className="ol-preparation-field"><label htmlFor="edit-tracking">Tracking number</label><input id="edit-tracking" maxLength={100} value={editTracking} disabled={disabled} onChange={event => setEditTracking(event.target.value)} /></div><div className="ol-preparation-wide"><button className="button primary" type="submit" disabled={disabled || !details.ready}>Save pending details</button><p>Status stays PENDING. This does not dispatch the shipment.</p></div></form> : <p className="ol-preparation-body">This record is read-only in Stage A. Dispatch, delivery, return and cancellation updates are disabled.</p>}
+      {fulfillment ? <div className="ol-preparation-body">
+        {next ? <button className="button primary" disabled={disabled || !details.ready} onClick={() => { if (window.confirm("Move fulfillment to " + next + "? This is preparation only; stock will not change.")) void mutate({ currentStatus: details.status, newStatus: next }, details.id); }}>Mark {next.toLowerCase()}</button>
+          : details.status === "PACKED" ? <>
+            <button className="button primary" disabled={dispatchDisabled || !details.dispatch_eligible} onClick={() => {
+              if (window.confirm("Dispatch fulfillment #" + details.id + "? This permanently deducts " + details.quantity + " unit(s) from physical and reserved stock. Cancellation and automatic refunds will remain blocked.")) void mutate({ currentStatus: "PACKED" }, details.id, "dispatch");
+            }}>{busy ? "Dispatching…" : "Dispatch inventory"}</button>
+            <p>{details.dispatch_eligible ? "Stock, payment and reservation eligibility are checked again inside the atomic dispatch." : "Dispatch requires matching confirmed inventory holds, successful payment and a pending shipment. Prepare the shipment, then refresh this record."}</p>
+          </> : <p>{details.status === "FULFILLED" ? "Inventory has been dispatched. Continue delivery tracking in Shipments." : "No fulfillment action is available for this status."}</p>}
+      </div> : <>
+        <div className="ol-preparation-body">
+          <ol className="ol-delivery-timeline" aria-label="Shipment delivery progress">
+            {deliverySteps.map((step, index) => <li key={step} className={deliveryIndex >= index ? "ol-delivery-complete" : ""} aria-current={details.status === step ? "step" : undefined}>
+              <span>{index + 1}</span><strong>{step.toLowerCase().replaceAll("_", " ")}</strong>
+              {step === "SHIPPED" && details.ship_date && <small>{dateText(details.ship_date)}</small>}
+              {step === "DELIVERED" && details.delivery_date && <small>{dateText(details.delivery_date)}</small>}
+            </li>)}
+          </ol>
+          {nextShipment ? <>
+            <button className="button primary" disabled={dispatchDisabled || details.fulfillment_status !== "FULFILLED"} onClick={() => {
+              if (window.confirm("Move shipment #" + details.id + " from " + details.status + " to " + nextShipment + "?")) void mutate({ currentStatus: details.status, newStatus: nextShipment }, details.id, "transition");
+            }}>{busy ? "Updating…" : "Mark " + nextShipment.toLowerCase().replaceAll("_", " ")}</button>
+            {details.fulfillment_status !== "FULFILLED" && <p>Dispatch fulfillment #{details.fulfillment_id} before shipping.</p>}
+          </> : <p>{details.status === "DELIVERED" ? "Delivery completed." : "This shipment status has no supported transition."}</p>}
+          <p>Returns and cancellation require a separate reviewed workflow. No automatic restocking or refunds are performed.</p>
+        </div>
+        {details.status === "PENDING" && details.fulfillment_status === "PACKED" && !details.ship_date && !details.delivery_date && <form className="ol-preparation-form" onSubmit={event => { event.preventDefault(); void mutate({ currentStatus: "PENDING", newStatus: "PENDING", courier: editCourier, trackingNo: editTracking, expectedCourier: details.courier, expectedTrackingNo: details.tracking_no ?? null }, details.id); }}>
+          <div className="ol-preparation-field"><label htmlFor="edit-courier">Courier *</label><input id="edit-courier" required maxLength={100} value={editCourier} disabled={disabled} onChange={event => setEditCourier(event.target.value)} /></div>
+          <div className="ol-preparation-field"><label htmlFor="edit-tracking">Tracking number</label><input id="edit-tracking" maxLength={100} value={editTracking} disabled={disabled} onChange={event => setEditTracking(event.target.value)} /></div>
+          <div className="ol-preparation-wide"><button className="button primary" type="submit" disabled={disabled || !details.ready}>Save pending details</button><p>Status stays PENDING. This does not dispatch the shipment. Courier/tracking edits close after inventory dispatch.</p></div>
+        </form>}
+      </>}
     </Panel></div>}
   </div>;
 }
