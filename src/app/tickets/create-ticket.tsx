@@ -40,7 +40,7 @@ export default function CreateTicket() {
         <div className={styles.field}><label className={styles.fieldLabel} htmlFor="ticket-order">Order ID</label><input className={styles.control} id="ticket-order" required inputMode="numeric" pattern="[0-9]+" value={orderId} onChange={event => setOrderId(event.target.value)} placeholder="Existing order ID" disabled={busy || !!createdId} /></div>
         <div className={styles.field}><label className={styles.fieldLabel} htmlFor="ticket-issue">Issue Type</label><select className={styles.control} id="ticket-issue" required value={issueType} onChange={event => setIssueType(event.target.value)} disabled={busy || !!createdId}><option value="" disabled>Select issue type</option>{issueTypes.map(value => <option key={value} value={value}>{value}</option>)}</select></div>
         <div className={`${styles.field} ${styles.wide}`}><label className={styles.fieldLabel} htmlFor="ticket-description">Description</label><textarea className={`${styles.control} ${styles.textarea}`} id="ticket-description" required rows={5} value={description} onChange={event => setDescription(event.target.value)} placeholder="Describe the issue and the help needed…" disabled={busy || !!createdId} /></div>
-        <div className={`${styles.actions} ${styles.wide}`}><button className="button primary" disabled={busy || uncertain || !!createdId} type="submit">{busy ? "Creating…" : "Create ticket"}</button><BackLink /></div>
+        <div className={`${styles.actions} ${styles.wide}`}><button className="button primary" disabled={busy || uncertain || !!createdId} type="submit">{busy ? "Creating…" : "Create ticket"}</button></div>
       </form>
     </Panel>
   </div>;
