@@ -72,7 +72,6 @@ export default function CatalogManager({ kind }: { kind: Kind }) {
     const controller = new AbortController();
     activeRequest.current = controller;
     const current = () => !controller.signal.aborted && activeRequest.current === controller;
-    setLoading(true); setLoadError(""); setRows([]);
     const params = new URLSearchParams({ search: query.search, page: String(query.page), pageSize: "10", category_id: query.category });
     request("/api/" + kind + "?" + params, { signal: controller.signal }).then(body => {
       if (!Array.isArray(body[kind]) || typeof body.total !== "number" || !Number.isSafeInteger(body.total) || body.total < 0 || body.page !== query.page || body.pageSize !== 10) throw new Error("Invalid listing response.");
@@ -88,8 +87,8 @@ export default function CatalogManager({ kind }: { kind: Kind }) {
     return () => controller.abort();
   }, [kind, product, query, revision]);
 
-  function apply(next: Query) { activeRequest.current?.abort(); setLoading(true); setQuery(next); }
-  function refreshRecords() { activeRequest.current?.abort(); setLoading(true); setRevision(value => value + 1); }
+  function apply(next: Query) { activeRequest.current?.abort(); setLoading(true); setLoadError(""); setQuery(next); }
+  function refreshRecords() { activeRequest.current?.abort(); setLoading(true); setLoadError(""); setRevision(value => value + 1); }
   function refreshVisible() { apply({ search: search.trim(), category: filter, page: search.trim() === query.search && filter === query.category ? query.page : 1 }); }
   function clear() { setSearch(""); setFilter(""); apply({ search: "", category: "", page: 1 }); }
   function resetEditor() { setEditing(null); setDraft({}); }

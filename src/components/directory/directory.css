@@ -1,32 +1,145 @@
-/* Uniquely prefixed, ordinary CSS: compatible with the existing Tailwind loader.
-   Every selector is confined to the Customer/Category directory workspace. */
-.ol-directory { display: grid; grid-template-columns: minmax(0,1fr); align-content: start; gap: 22px; min-width: 0; font-size: 14px; }
-.ol-directory .page-heading { margin-bottom: 0; }
-.ol-directory .page-heading p:not(.eyebrow) { font-size: 14px; }
-.ol-directory .panel, .ol-directory .table-scroll { min-width: 0; }
-.ol-directory .panel-heading { flex-wrap: wrap; }
-.ol-directory .panel-heading p { font-size: 13px; line-height: 1.6; }
-.ol-directory .button { min-height: 44px; font-size: 14px; }
-.ol-directory .button:disabled { cursor: not-allowed; }
-.ol-directory .ol-directory-form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; align-items: start; margin: 0; padding: 0 20px 20px; }
-.ol-directory .ol-directory-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.ol-directory .ol-directory-field label { display: block; position: static; margin: 0; font-size: 13px; color: #52637a; line-height: 20px; }
-.ol-directory .ol-directory-field input, .ol-directory .ol-directory-field textarea { display: block; position: static; width: 100%; min-width: 0; margin: 0; padding: 10px 12px; border: 1px solid #dce3ed; border-radius: 7px; background: #fff; color: #354359; font: inherit; font-size: 14px; line-height: 22px; }
-.ol-directory .ol-directory-field input { height: 44px; }
-.ol-directory .ol-directory-field textarea { min-height: 100px; resize: vertical; }
-.ol-directory .ol-directory-wide { grid-column: 1/-1; }
-.ol-directory .ol-directory-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.ol-directory .ol-directory-filters { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: end; gap: 14px; padding: 0 20px 20px; margin: 0; }
-.ol-directory th, .ol-directory td, .ol-directory .empty-state { font-size: 14px; }
-.ol-directory .ol-directory-cell { min-width: 140px; max-width: 300px; white-space: normal; overflow-wrap: anywhere; }
-.ol-directory .ol-directory-body { padding: 0 20px 20px; font-size: 14px; line-height: 1.6; }
-.ol-directory .ol-directory-notice { padding: 14px 18px; border-radius: 7px; line-height: 1.6; overflow-wrap: anywhere; }
-.ol-directory .ol-directory-error { color: #ad3d3d; background: #fceeee; }
-.ol-directory .ol-directory-success { color: #247a65; background: #ebf8f3; }
-.ol-directory .ol-directory-delete { color: #ad3d3d; }
-.ol-directory .ol-directory-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid #edf0f5; padding: 16px 20px; }
-.ol-directory .ol-directory-footnote { margin: 0; padding: 0 20px 16px; color: #68778e; font-size: 13px; line-height: 1.6; }
-@media (max-width: 760px) {
-  .ol-directory .ol-directory-form, .ol-directory .ol-directory-filters { grid-template-columns: minmax(0,1fr); padding-inline: 15px; }
-  .ol-directory .page-heading { flex-wrap: wrap; }
+.ol-directory {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 24px;
+  min-width: 0;
+  font-size: 14px;
+}
+
+.ol-directory .page-heading {
+  margin-bottom: 0;
+}
+
+.ol-directory .ol-directory-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+  margin: 0;
+  padding: 0 24px 22px;
+}
+
+.ol-directory .ol-directory-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ol-directory .ol-directory-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--foreground-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: var(--font-geist-mono), monospace;
+}
+
+.ol-directory .ol-directory-field input,
+.ol-directory .ol-directory-field textarea {
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  padding: 8px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  background: rgba(14, 25, 46, 0.85);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.ol-directory .ol-directory-field input:focus,
+.ol-directory .ol-directory-field textarea:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.25);
+  outline: none;
+}
+
+.ol-directory .ol-directory-field textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.ol-directory .ol-directory-wide {
+  grid-column: 1 / -1;
+}
+
+.ol-directory .ol-directory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.ol-directory .ol-directory-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: end;
+  gap: 16px;
+  padding: 0 24px 20px;
+  margin: 0;
+}
+
+.ol-directory .ol-directory-notice {
+  padding: 14px 18px;
+  border-radius: 9px;
+  line-height: 1.6;
+  font-size: 13px;
+}
+
+.ol-directory .ol-directory-error {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.ol-directory .ol-directory-success {
+  color: #5eead4;
+  background: rgba(20, 184, 166, 0.12);
+  border: 1px solid rgba(20, 184, 166, 0.35);
+}
+
+.ol-directory .ol-directory-delete {
+  color: var(--red);
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.ol-directory .ol-directory-delete:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fff;
+  border-color: var(--red);
+}
+
+.ol-directory .ol-directory-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--border-subtle);
+  padding: 16px 24px;
+  color: var(--foreground-muted);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 11px;
+}
+
+.ol-directory .ol-directory-footnote {
+  margin: 0;
+  padding: 0 24px 16px;
+  color: var(--foreground-muted);
+  font-size: 11px;
+  font-family: var(--font-geist-mono), monospace;
+}
+
+@media (max-width: 820px) {
+  .ol-directory .ol-directory-form,
+  .ol-directory .ol-directory-filters {
+    grid-template-columns: 1fr;
+    padding-inline: 16px;
+  }
 }
