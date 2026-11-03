@@ -65,7 +65,6 @@ export default function PreparationManager({ kind }: { kind: Kind }) {
   useEffect(() => {
     const controller = new AbortController(); active.current = controller;
     const current = () => !controller.signal.aborted && active.current === controller;
-    setLoading(true); setLoadError(""); setRows([]);
     const params = new URLSearchParams({ search: query.search, status: query.status, page: String(query.page), pageSize: "10" });
     request("/api/" + kind + "?" + params, { signal: controller.signal }).then(result => {
       if (!Array.isArray(result.records) || !Array.isArray(result.eligible) || typeof result.total !== "number" || !Number.isSafeInteger(result.total) || result.total < 0 || typeof result.ready !== "boolean" || result.page !== query.page || result.pageSize !== 10) throw new Error("Invalid list response.");
@@ -81,8 +80,8 @@ export default function PreparationManager({ kind }: { kind: Kind }) {
       .finally(() => { if (current()) setLoading(false); });
     return () => controller.abort();
   }, [kind, query, revision]);
-  function apply(next: Query) { active.current?.abort(); setLoading(true); setQuery(next); }
-  function refresh() { active.current?.abort(); setLoading(true); setRevision(value => value + 1); }
+  function apply(next: Query) { active.current?.abort(); setLoading(true); setLoadError(""); setQuery(next); }
+  function refresh() { active.current?.abort(); setLoading(true); setLoadError(""); setRevision(value => value + 1); }
   function refreshVisible() {
     apply({ search: search.trim(), status, page: search.trim() === query.search && status === query.status ? query.page : 1 });
     if (details) void openDetails(details.id);

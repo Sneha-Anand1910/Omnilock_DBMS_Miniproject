@@ -66,7 +66,6 @@ export default function DirectoryManager({ kind }: { kind: Kind }) {
     const controller = new AbortController();
     listRequest.current = controller;
     const isCurrent = () => !controller.signal.aborted && listRequest.current === controller;
-    setLoading(true); setLoadError(""); setListing(null);
     const params = new URLSearchParams({ search: query.search, page: String(query.page), pageSize: "10" });
     request("/api/" + kind + "?" + params, { signal: controller.signal }).then(body => {
       if (!Array.isArray(body[kind]) || typeof body.total !== "number" || !Number.isSafeInteger(body.total) || body.total < 0 || body.page !== query.page || body.pageSize !== 10) throw new Error("Invalid listing response.");
@@ -82,10 +81,10 @@ export default function DirectoryManager({ kind }: { kind: Kind }) {
   }, [kind, query, revision, idKey, fields]);
 
   function reset() { setEditing(null); editingRef.current = null; setDraft({}); }
-  function refresh() { setRevision(value => value + 1); }
+  function refresh() { setLoading(true); setLoadError(""); setRevision(value => value + 1); }
   function changeQuery(next: { search: string; page: number }) {
     // Invalidate immediately, before React runs the next effect's cleanup.
-    if (customer) { listRequest.current?.abort(); setLoading(true); }
+    listRequest.current?.abort(); setLoading(true); setLoadError("");
     setQuery(next);
   }
   function changeSearch(value: string) {

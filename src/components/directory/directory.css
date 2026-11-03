@@ -30,3 +30,22 @@
   .ol-directory .ol-directory-form, .ol-directory .ol-directory-filters { grid-template-columns: minmax(0,1fr); padding-inline: 15px; }
   .ol-directory .page-heading { flex-wrap: wrap; }
 }
+
+/* Dark glass treatment for customer and category workflows. */
+.ol-directory .ol-directory-form,
+.ol-directory .ol-directory-filters { border-color: rgb(146 172 210 / 13%); }
+.ol-directory .ol-directory-field label { color: #b1c1d7; }
+.ol-directory .ol-directory-field input,
+.ol-directory .ol-directory-field textarea { color: #e5edf8; border-color: rgb(143 172 212 / 21%); background: #0d192b; }
+.ol-directory .ol-directory-field input::placeholder,
+.ol-directory .ol-directory-field textarea::placeholder { color: #8094b1; }
+.ol-directory th { color: #9fb2cc; background: #101d31; border-color: rgb(145 172 211 / 13%); }
+.ol-directory td { color: #bdc9db; border-color: rgb(145 172 211 / 10%); }
+.ol-directory td strong { color: #e7eef9; }
+.ol-directory .ol-directory-cell { color: #bdc9db; }
+.ol-directory .ol-directory-notice { color: #b7c6da; background: rgb(41 66 99 / 34%); }
+.ol-directory .ol-directory-error { color: #ffadb3; background: rgb(177 54 74 / 15%); border: 1px solid rgb(235 99 118 / 19%); }
+.ol-directory .ol-directory-success { color: #7ce0c2; background: rgb(27 130 103 / 16%); border: 1px solid rgb(70 190 150 / 18%); }
+.ol-directory .ol-directory-delete { color: #ff9ca5; }
+.ol-directory .ol-directory-pagination { border-color: rgb(145 172 211 / 13%); color: #a5b6ce; }
+.ol-directory .ol-directory-footnote { color: #8fa3bf; }

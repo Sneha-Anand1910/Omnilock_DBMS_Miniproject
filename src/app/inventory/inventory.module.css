@@ -15,3 +15,11 @@
 .filters > button { height: 44px; }
 .filters label { line-height: 1.5; }
 
+.filters label { color: #b1c1d7; }
+.filters input, .filters select { color: #e5edf8; border-color: rgb(143 172 212 / 21%); background: #0d192b; }
+.filters input::placeholder { color: #8094b1; }
+.results { color: #a5b6ce; }
+.available { color: #76e3cb; background: rgb(36 174 146 / 13%); }
+.low { color: #f3cc7d; background: rgb(184 131 48 / 13%); }
+.out { color: #ff9da5; background: rgb(196 67 86 / 14%); }
+

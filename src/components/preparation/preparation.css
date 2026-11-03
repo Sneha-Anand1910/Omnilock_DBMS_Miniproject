@@ -49,3 +49,23 @@
 .ol-preparation td small, .ol-preparation .badge { font-size: 13px; }
 @media (max-width: 1100px) { .ol-preparation .ol-preparation-filters { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 760px) { .ol-preparation .ol-preparation-filters { grid-template-columns: minmax(0,1fr); } }
+.ol-preparation .ol-preparation-form,
+.ol-preparation .ol-preparation-filters { border-color: rgb(146 172 210 / 13%); }
+.ol-preparation .ol-preparation-field label { color: #b1c1d7; }
+.ol-preparation .ol-preparation-field input,
+.ol-preparation .ol-preparation-field select,
+.ol-preparation .ol-preparation-field textarea { color: #e5edf8; border-color: rgb(143 172 212 / 21%); background: #0d192b; }
+.ol-preparation .ol-preparation-field input::placeholder,
+.ol-preparation .ol-preparation-field textarea::placeholder { color: #8094b1; }
+.ol-preparation th { color: #9fb2cc; background: #101d31; border-color: rgb(145 172 211 / 13%); }
+.ol-preparation td { color: #bdc9db; border-color: rgb(145 172 211 / 10%); }
+.ol-preparation td strong { color: #e7eef9; }
+.ol-preparation .ol-preparation-notice { color: #b7c6da; background: rgb(41 66 99 / 34%); }
+.ol-preparation .ol-preparation-error { color: #ffadb3; background: rgb(177 54 74 / 15%); border: 1px solid rgb(235 99 118 / 19%); }
+.ol-preparation .ol-preparation-success { color: #7ce0c2; background: rgb(27 130 103 / 16%); border: 1px solid rgb(70 190 150 / 18%); }
+.ol-preparation .ol-preparation-delete { color: #ff9ca5; }
+.ol-preparation .ol-preparation-pagination { border-color: rgb(145 172 211 / 13%); color: #a5b6ce; }
+.ol-preparation .ol-preparation-footnote { color: #8fa3bf; }
+.ol-preparation .ol-delivery-timeline li { color: #9eb0c9; border-color: rgb(143 171 212 / 23%); }
+.ol-preparation .ol-delivery-timeline li.ol-delivery-complete { color: #74dfc5; border-color: #2cbca9; }
+.ol-preparation .ol-delivery-timeline li > span { color: #c0d4f4; background: rgb(51 81 124 / 46%); }

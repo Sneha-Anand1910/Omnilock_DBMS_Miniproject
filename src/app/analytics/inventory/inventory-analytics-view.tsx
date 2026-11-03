@@ -36,8 +36,6 @@ export default function InventoryAnalyticsView() {
     if (applied.search.trim()) params.set("search", applied.search.trim());
     if (applied.warehouseId) params.set("warehouseId", applied.warehouseId);
     if (applied.categoryId) params.set("categoryId", applied.categoryId);
-    setLoading(true);
-    setError("");
     fetch(`/api/analytics/inventory?${params}`, { signal: controller.signal })
       .then(async response => {
         const result = await response.json().catch(() => null);
@@ -52,12 +50,22 @@ export default function InventoryAnalyticsView() {
 
   function applyFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setLoading(true);
+    setError("");
     setApplied({ ...filters, search: filters.search.trim() });
   }
 
   function clearFilters() {
+    setLoading(true);
+    setError("");
     setFilters(initialFilters);
     setApplied(initialFilters);
+  }
+
+  function refresh() {
+    setLoading(true);
+    setError("");
+    setRevision(value => value + 1);
   }
 
   const topMaximum = data?.topProducts.reduce((maximum, product) => {
@@ -68,7 +76,7 @@ export default function InventoryAnalyticsView() {
   return <div className={styles.root}>
     <div className="page-heading">
       <div><p className="eyebrow">INVENTORY INSIGHTS</p><h1>Inventory analytics</h1><p>Review stock levels, warehouse availability, and top ordered products.</p></div>
-      <button className="button" disabled={loading} onClick={() => setRevision(value => value + 1)}>{loading ? "Refreshing…" : "Refresh data"}</button>
+      <button className="button" disabled={loading} onClick={refresh}>{loading ? "Refreshing…" : "Refresh data"}</button>
     </div>
 
     <Panel title="Search and filters" subtitle="Filters apply to stock reports; product and category filters also apply to top ordered products.">
@@ -83,7 +91,7 @@ export default function InventoryAnalyticsView() {
 
     {error && <section className={styles.errorPanel} role="alert" aria-labelledby="analytics-error-title">
       <div className={styles.errorCopy}><span className={styles.errorIcon} aria-hidden="true">!</span><div><h2 id="analytics-error-title">Inventory analytics unavailable</h2><p>{error}</p></div></div>
-      <button className="button" onClick={() => setRevision(value => value + 1)}>Retry</button>
+      <button className="button" onClick={refresh}>Retry</button>
     </section>}
     {loading && <div className={styles.loading} role="status" aria-live="polite"><span className={styles.spinner} aria-hidden="true" />Loading inventory analytics…</div>}
 
@@ -95,6 +103,20 @@ export default function InventoryAnalyticsView() {
         <StatCard label="Reserved stock" value={data.summary.reserved} detail="Held in filtered stock" icon="lock" accent="violet" />
         <StatCard label="Available stock" value={data.summary.available} detail="Filtered physical minus reserved" icon="inventory" accent="teal" />
       </section>
+
+      <Panel title="Stock distribution" subtitle="Physical, reserved, and available quantities for the current product and warehouse filters.">
+        <div className={styles.distribution}>
+          {([
+            { label: "Physical stock", value: data.summary.physical, color: styles.physicalBar },
+            { label: "Reserved stock", value: data.summary.reserved, color: styles.reservedBar },
+            { label: "Available stock", value: data.summary.available, color: styles.availableBar },
+          ]).map(item => <div className={styles.distributionRow} key={item.label}>
+            <div className={styles.distributionLabel}><span>{item.label}</span><strong>{formatQuantity(item.value)}</strong></div>
+            <div className={styles.distributionTrack} role="img" aria-label={`${item.label}: ${formatQuantity(item.value)}`}><span className={item.color} style={{ width: `${percentage(item.value, data.summary.physical)}%` }} /></div>
+          </div>)}
+        </div>
+        <div className="panel-footnote">Bar lengths are relative to physical stock. Available quantity is physical stock minus reserved stock.</div>
+      </Panel>
 
       <Panel title="Low-stock products" subtitle={`Products with available stock at or below ${applied.threshold} units`}>
         {data.lowStock.length === 0 ? <EmptyState message="No inventory locations match this low-stock threshold and filter set." /> :

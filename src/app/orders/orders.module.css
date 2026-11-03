@@ -12,3 +12,11 @@
 .error { color: #ad3d3d; background: #fceeee; }
 .success { color: #247a65; background: #ebf8f3; }
 @media (max-width: 760px) { .filters { grid-template-columns: minmax(0, 1fr); padding-inline: 15px; } }
+
+.filters label { color: #b1c1d7; }
+.filters input, .filters select { color: #e5edf8; border-color: rgb(143 172 212 / 21%); background: #0d192b; }
+.filters input::placeholder { color: #8094b1; }
+.count { color: #a5b6ce; }
+.cancel { color: #ff9ca5; }
+.error { color: #ffadb3; background: rgb(177 54 74 / 15%); border: 1px solid rgb(235 99 118 / 19%); }
+.success { color: #7ce0c2; background: rgb(27 130 103 / 16%); border: 1px solid rgb(70 190 150 / 18%); }

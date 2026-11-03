@@ -7,7 +7,7 @@ export function StatusBadge({ status }: { status: string | null }) {
   return <span className={`badge ${tone}`}><span />{value.toLowerCase().replaceAll("_", " ")}</span>;
 }
 export function StatCard({ label, value, detail, icon, accent = "blue" }: { label: string; value?: string; detail: string; icon: string; accent?: string }) {
-  return <article className="stat-card"><div className="stat-top"><span>{label}</span><span className={`stat-icon ${accent}`}><Icon name={icon} /></span></div><p className="stat-value">{value === undefined ? "—" : new Intl.NumberFormat("en-IN").format(BigInt(value))}</p><p className="stat-detail">{detail}</p></article>;
+  return <article className={`stat-card stat-card-${accent}`}><div className="stat-top"><span>{label}</span><span className={`stat-icon ${accent}`}><Icon name={icon} /></span></div><p className="stat-value">{value === undefined ? "—" : new Intl.NumberFormat("en-IN").format(BigInt(value))}</p><p className="stat-detail">{detail}</p></article>;
 }
 export function Panel({ title, subtitle, action, children, className = "" }: { title: string; subtitle: string; action?: ReactNode; children: ReactNode; className?: string }) {
   return <section className={`panel ${className}`}><div className="panel-heading"><div><h2>{title}</h2><p>{subtitle}</p></div>{action}</div>{children}</section>;

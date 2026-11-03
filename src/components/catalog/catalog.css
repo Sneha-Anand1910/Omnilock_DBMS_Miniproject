@@ -35,3 +35,23 @@
 .ol-catalog .ol-catalog-product-filters { grid-template-columns: minmax(0,2fr) minmax(0,1fr) auto auto; }
 @media (max-width: 1100px) { .ol-catalog .ol-catalog-product-filters { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 760px) { .ol-catalog .ol-catalog-product-filters { grid-template-columns: minmax(0,1fr); } }
+
+/* Dark glass treatment for catalog and warehouse operations. */
+.ol-catalog .ol-catalog-form,
+.ol-catalog .ol-catalog-filters { border-color: rgb(146 172 210 / 13%); }
+.ol-catalog .ol-catalog-field label { color: #b1c1d7; }
+.ol-catalog .ol-catalog-field input,
+.ol-catalog .ol-catalog-field select,
+.ol-catalog .ol-catalog-field textarea { color: #e5edf8; border-color: rgb(143 172 212 / 21%); background: #0d192b; }
+.ol-catalog .ol-catalog-field input::placeholder,
+.ol-catalog .ol-catalog-field textarea::placeholder { color: #8094b1; }
+.ol-catalog th { color: #9fb2cc; background: #101d31; border-color: rgb(145 172 211 / 13%); }
+.ol-catalog td { color: #bdc9db; border-color: rgb(145 172 211 / 10%); }
+.ol-catalog td strong { color: #e7eef9; }
+.ol-catalog .ol-catalog-cell { color: #bdc9db; }
+.ol-catalog .ol-catalog-notice { color: #b7c6da; background: rgb(41 66 99 / 34%); }
+.ol-catalog .ol-catalog-error { color: #ffadb3; background: rgb(177 54 74 / 15%); border: 1px solid rgb(235 99 118 / 19%); }
+.ol-catalog .ol-catalog-success { color: #7ce0c2; background: rgb(27 130 103 / 16%); border: 1px solid rgb(70 190 150 / 18%); }
+.ol-catalog .ol-catalog-delete { color: #ff9ca5; }
+.ol-catalog .ol-catalog-pagination { border-color: rgb(145 172 211 / 13%); color: #a5b6ce; }
+.ol-catalog .ol-catalog-footnote { color: #8fa3bf; }

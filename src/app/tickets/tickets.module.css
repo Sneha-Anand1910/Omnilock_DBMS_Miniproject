@@ -50,3 +50,21 @@
 @media (max-width: 900px) { .details { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 640px) { .form, .filters, .details { grid-template-columns: minmax(0,1fr); } .form, .body { padding-inline: 15px; } }
 @media (max-width: 380px) { .stats { grid-template-columns: minmax(0,1fr); } }
+
+.fieldLabel { color: #b1c1d7; }
+.field > .control { color: #e5edf8; border-color: rgb(143 172 212 / 21%); background: #0d192b; }
+.field > .control::placeholder { color: #8094b1; }
+.error { color: #ffadb3; background: rgb(177 54 74 / 15%); border: 1px solid rgb(235 99 118 / 19%); }
+.success { color: #7ce0c2; background: rgb(27 130 103 / 16%); border: 1px solid rgb(70 190 150 / 18%); }
+.hint { color: #92a6c1; }
+.summaryCard { border-color: rgb(144 171 209 / 16%); background: linear-gradient(145deg, #17263e, #121f34); box-shadow: 0 12px 28px rgb(0 0 0 / 18%); }
+.summaryLabel { color: #a8b9d0; }
+.summaryValue { color: #f3f7ff; }
+.summaryResolved .summaryValue { color: #70e1ca; }
+.issues .issue { color: #bdc9db; background: rgb(37 56 83 / 70%); border: 1px solid rgb(144 171 209 / 12%); }
+.issues .issue strong { color: #70e1ca; }
+.pager { color: #a5b6ce; border-color: rgb(145 172 211 / 13%); }
+.details dt { color: #9caec7; }
+.message { color: #c4d0e1; background: #17263d; border-color: rgb(145 172 211 / 15%); }
+.support { background: rgb(21 104 87 / 20%); border-color: rgb(64 173 146 / 21%); }
+.link { color: #91bdff; }

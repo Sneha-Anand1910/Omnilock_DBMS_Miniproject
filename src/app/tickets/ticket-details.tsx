@@ -17,21 +17,22 @@ export default function TicketDetails({ id }: { id: string }) {
   const [uncertainMessage, setUncertainMessage] = useState(false);
   const inFlight = useRef(false);
   const activeLoad = useRef<AbortController | null>(null);
-  const load = useCallback(async () => {
+  const load = useCallback(() => {
     activeLoad.current?.abort();
     const controller = new AbortController();
     activeLoad.current = controller;
-    setLoading(true); setLoadError("");
-    try {
+    return Promise.resolve().then(() => {
       if (!/^[a-f\d]{24}$/i.test(id)) throw new Error("Invalid ticket ID. Return to the ticket register and select a ticket.");
-      const result = await request(`/api/tickets/${id}`, { signal: controller.signal });
+      return request(`/api/tickets/${id}`, { signal: controller.signal });
+    }).then(result => {
       const value = ticket(result.ticket);
       if (value._id.toLowerCase() !== id.toLowerCase()) throw new Error("The API returned a different ticket. Reload before making changes.");
       if (!controller.signal.aborted) setData(value);
-    } catch (reason) { if (!controller.signal.aborted) { setData(null); setLoadError(errorText(reason)); } }
-    finally { if (!controller.signal.aborted) setLoading(false); }
+    }).catch(reason => { if (!controller.signal.aborted) { setData(null); setLoadError(errorText(reason)); } })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
   }, [id]);
   useEffect(() => { void load(); return () => activeLoad.current?.abort(); }, [load]);
+  function refresh() { setLoading(true); setLoadError(""); void load(); }
 
   async function mutate(kind: "message" | "status") {
     if (!data || loading || inFlight.current || (kind === "message" && uncertainMessage)) return;
@@ -56,6 +57,7 @@ export default function TicketDetails({ id }: { id: string }) {
         setNotice({ error: true, text: unknownOutcome ? "The update could not be confirmed. Review the refreshed conversation and status before retrying to avoid duplicate messages." : errorText(reason) });
       }
     } finally {
+      setLoading(true); setLoadError("");
       await load();
       inFlight.current = false; setBusy(false);
     }
@@ -63,9 +65,9 @@ export default function TicketDetails({ id }: { id: string }) {
   function send(event: FormEvent<HTMLFormElement>) { event.preventDefault(); void mutate("message"); }
   const next = data?.status === "OPEN" ? "Start progress" : data?.status === "IN_PROGRESS" ? "Mark resolved" : null;
   return <div className={styles.root}>
-    <Heading title="Ticket details" description="Review the issue, respond and track its resolution."><button className="button" disabled={loading || busy} onClick={() => void load()}>Refresh ticket</button><BackLink /></Heading>
+    <Heading title="Ticket details" description="Review the issue, respond and track its resolution."><button className="button" disabled={loading || busy} onClick={refresh}>Refresh ticket</button><BackLink /></Heading>
     {notice && <Notice error={notice.error}>{notice.text}</Notice>}
-    {loading ? <Loading /> : loadError ? <Notice error>{loadError} <button className="button" onClick={() => void load()}>Retry loading</button></Notice> : null}
+    {loading ? <Loading /> : loadError ? <Notice error>{loadError} <button className="button" onClick={refresh}>Retry loading</button></Notice> : null}
     {data && !loading && !loadError && <>
       <Panel title="Ticket information" subtitle={`Ticket ${data._id}`} action={<Badge status={data.status} />}>
         <div className={styles.body}>
