@@ -17,6 +17,30 @@ export function Icon({ name, className = "" }: { name: string; className?: strin
     alert: "m12 3 10 18H2L12 3z M12 9v5 M12 17h.01",
     menu: "M4 6h16 M4 12h16 M4 18h16",
     close: "m6 6 12 12 M6 18 18 6",
+    search: "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M21 21l-4.35-4.35",
+    soundOn: "M11 5L6 9H2v6h4l5 4V5z M19.07 4.93a10 10 0 0 1 0 14.14 M15.54 8.46a5 5 0 0 1 0 7.07",
+    soundOff: "M11 5L6 9H2v6h4l5 4V5z M23 9l-6 6 M17 9l6 6",
+    cube3d: "M21 16.5V7.5L12 2 3 7.5v9l9 5.5 9-5.5z M3.27 7.72L12 12.5l8.73-4.78 M12 22.5V12.5",
+    viewTable: "M3 3h18v18H3z M3 9h18 M3 15h18 M9 9v12 M15 9v12",
+    chevronLeft: "M15 18l-6-6 6-6",
+    chevronRight: "M9 18l6-6-6-6",
+    check: "M20 6L9 17l-5-5",
+    radar: "M12 22a10 10 0 1 0-10-10 10 10 0 0 0 10 10z M12 18a6 6 0 1 0-6-6 6 6 0 0 0 6 6z M12 14a2 2 0 1 0-2-2 2 2 0 0 0 2 2z M12 2v4",
   };
-  return <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name] ?? paths.products} /></svg>;
+  return (
+    <svg
+      className={className}
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.65"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={paths[name] ?? paths.products} />
+    </svg>
+  );
 }
