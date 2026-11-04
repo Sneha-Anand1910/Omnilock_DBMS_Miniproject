@@ -124,6 +124,8 @@ export function Panel({
   );
 }
 
+const numericHeaders = new Set(["On hand", "On Hand", "Total quantity", "Total Quantity", "Reserved", "Available", "Total amount", "Quantity", "Unit price", "Amount", "Price", "Capacity"]);
+
 export function DataTable({
   headers,
   children,
@@ -146,7 +148,7 @@ export function DataTable({
         <thead>
           <tr>
             {headers.map((header) => (
-              <th key={header} scope="col">
+              <th key={header} scope="col" className={numericHeaders.has(header) ? "numeric" : undefined}>
                 <span className="th-content">
                   {header}
                   <span className="th-glow-underline" />

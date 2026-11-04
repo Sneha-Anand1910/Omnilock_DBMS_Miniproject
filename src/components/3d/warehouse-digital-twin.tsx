@@ -2,34 +2,34 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import type { InventoryRecord, WarehouseOption } from "@/lib/inventory";
+import type { InventoryRecord } from "@/lib/inventory";
 import { playHoverSound, playInspectSound } from "@/lib/sound";
 
 export default function WarehouseDigitalTwin({
   records,
-  warehouses,
+  selectedWarehouse,
   threshold,
   onSelectRecord,
 }: {
   records: InventoryRecord[];
-  warehouses: WarehouseOption[];
+  selectedWarehouse: string;
   threshold: number;
   onSelectRecord?: (record: InventoryRecord) => void;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const orbitTargetRef = useRef(new THREE.Vector3(-2, 2, 1));
   const viewPresetRef = useRef<"iso" | "aisle" | "top">("iso");
   const onSelectRecordRef = useRef(onSelectRecord);
   onSelectRecordRef.current = onSelectRecord;
   const [webglUnavailable, setWebglUnavailable] = useState(false);
-  const [selectedWarehouse, setSelectedWarehouse] = useState<number | "ALL">("ALL");
   const [inspectedRecord, setInspectedRecord] = useState<InventoryRecord | null>(null);
   const [viewPreset, setViewPreset] = useState<"iso" | "aisle" | "top">("iso");
   viewPresetRef.current = viewPreset;
 
   // Filter records by selected warehouse
   const activeRecords = useMemo(
-    () => records.filter((r) => selectedWarehouse === "ALL" || r.warehouse_id === selectedWarehouse),
+    () => records.filter((r) => !selectedWarehouse || String(r.warehouse_id) === selectedWarehouse),
     [records, selectedWarehouse]
   );
 
@@ -37,13 +37,14 @@ export default function WarehouseDigitalTwin({
     const camera = cameraRef.current;
     if (!camera) return;
     const targets = {
-      iso: { pos: [16, 14, 22], look: [0, 2, 0] },
-      aisle: { pos: [-2, 3.5, 9], look: [-2, 2.5, -4] },
-      top: { pos: [0, 26, 0.1], look: [0, 0, 0] },
+      iso: { pos: [12, 11, 17], look: [-2, 2, 1] },
+      aisle: { pos: [-2, 3.3, 6], look: [-2, 2.5, -4] },
+      top: { pos: [-2, 20, 1.1], look: [-2, 0, 1] },
     } as const;
     const target = targets[viewPreset];
     camera.position.set(target.pos[0], target.pos[1], target.pos[2]);
     camera.lookAt(target.look[0], target.look[1], target.look[2]);
+    orbitTargetRef.current.set(target.look[0], target.look[1], target.look[2]);
   }, [viewPreset]);
 
   useEffect(() => {
@@ -54,18 +55,19 @@ export default function WarehouseDigitalTwin({
     let height = mount.clientHeight || 500;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x040814);
-    scene.fog = new THREE.FogExp2(0x040814, 0.022);
+    scene.background = new THREE.Color(0xf1edff);
+    scene.fog = new THREE.FogExp2(0xf1edff, 0.008);
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
     const initialTargets = {
-      iso: { pos: [16, 14, 22], look: [0, 2, 0] },
-      aisle: { pos: [-2, 3.5, 9], look: [-2, 2.5, -4] },
-      top: { pos: [0, 26, 0.1], look: [0, 0, 0] },
+      iso: { pos: [12, 11, 17], look: [-2, 2, 1] },
+      aisle: { pos: [-2, 3.3, 6], look: [-2, 2.5, -4] },
+      top: { pos: [-2, 20, 1.1], look: [-2, 0, 1] },
     } as const;
     const initialTarget = initialTargets[viewPresetRef.current];
     camera.position.set(initialTarget.pos[0], initialTarget.pos[1], initialTarget.pos[2]);
     camera.lookAt(initialTarget.look[0], initialTarget.look[1], initialTarget.look[2]);
+    orbitTargetRef.current.set(initialTarget.look[0], initialTarget.look[1], initialTarget.look[2]);
     cameraRef.current = camera;
 
     let renderer: THREE.WebGLRenderer | undefined;
@@ -92,28 +94,28 @@ export default function WarehouseDigitalTwin({
     activeRenderer.domElement.addEventListener("webglcontextlost", onContextLost);
 
     // Ambient & Directional Lighting
-    const ambientLight = new THREE.AmbientLight(0x0f2038, 1.8);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.7);
     scene.add(ambientLight);
 
-    const cyanSpot = new THREE.SpotLight(0x00f0ff, 3.5, 40, Math.PI / 4, 0.4);
+    const cyanSpot = new THREE.SpotLight(0xffffff, 2.2, 40, Math.PI / 4, 0.4);
     cyanSpot.position.set(12, 18, 15);
     cyanSpot.castShadow = true;
     scene.add(cyanSpot);
 
-    const blueFill = new THREE.DirectionalLight(0x3b82f6, 1.2);
+    const blueFill = new THREE.DirectionalLight(0xb9a6f5, 1.5);
     blueFill.position.set(-15, 12, -10);
     scene.add(blueFill);
 
-    const tealRim = new THREE.PointLight(0x14b8a6, 2, 25);
+    const tealRim = new THREE.PointLight(0x5eead4, 1.2, 25);
     tealRim.position.set(0, 6, 0);
     scene.add(tealRim);
 
     // Reflective Grid Floor
     const floorGeo = new THREE.PlaneGeometry(60, 60);
     const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x060c18,
-      roughness: 0.25,
-      metalness: 0.85,
+      color: 0xddd6fe,
+      roughness: 0.8,
+      metalness: 0.1,
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
@@ -121,9 +123,47 @@ export default function WarehouseDigitalTwin({
     scene.add(floor);
 
     // Floor Laser Waypoint Tracks
-    const gridHelper = new THREE.GridHelper(50, 50, 0x00f0ff, 0x0c2545);
-    gridHelper.position.y = 0.01;
+    const gridHelper = new THREE.GridHelper(50, 50, 0x8b5cf6, 0x8b5cf6);
+    const gridMaterials = Array.isArray(gridHelper.material) ? gridHelper.material : [gridHelper.material];
+    gridMaterials.forEach((material) => {
+      material.transparent = true;
+      material.opacity = 0.38;
+      material.depthWrite = false;
+      material.blending = THREE.NormalBlending;
+    });
+    gridHelper.position.y = 0.035;
     scene.add(gridHelper);
+    const gridGlow = new THREE.GridHelper(50, 50, 0x8b5cf6, 0x8b5cf6);
+    const glowMaterials = Array.isArray(gridGlow.material) ? gridGlow.material : [gridGlow.material];
+    glowMaterials.forEach((material) => {
+      material.transparent = true;
+      material.opacity = 0.06;
+      material.depthWrite = false;
+      material.blending = THREE.AdditiveBlending;
+    });
+    gridGlow.position.y = 0.037;
+    scene.add(gridGlow);
+
+    // A few quiet waypoints make the floor grid easier to read without crowding it.
+    const highlightCoreGeo = new THREE.CircleGeometry(0.07, 12);
+    const highlightHaloGeo = new THREE.CircleGeometry(0.2, 16);
+    const highlightCoreMat = new THREE.MeshBasicMaterial({
+      color: 0x8b5cf6, transparent: true, opacity: 0.52,
+      depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+    });
+    const highlightHaloMat = new THREE.MeshBasicMaterial({
+      color: 0x8b5cf6, transparent: true, opacity: 0.1,
+      depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+    });
+    for (const [x, z] of [[-12, -8], [-12, 8], [-4, -8], [-4, 8], [4, -8], [4, 8], [12, -8], [12, 8]]) {
+      const halo = new THREE.Mesh(highlightHaloGeo, highlightHaloMat);
+      halo.rotation.x = -Math.PI / 2;
+      halo.position.set(x, 0.025, z);
+      const core = new THREE.Mesh(highlightCoreGeo, highlightCoreMat);
+      core.rotation.x = -Math.PI / 2;
+      core.position.set(x, 0.03, z);
+      scene.add(halo, core);
+    }
 
     // Storage Rack Rows Construction
     const clickableMeshes: { mesh: THREE.Mesh; record: InventoryRecord }[] = [];
@@ -134,15 +174,15 @@ export default function WarehouseDigitalTwin({
     const uprightGeo = new THREE.BoxGeometry(0.12, 4.5, 0.12);
     const beamGeo = new THREE.BoxGeometry(3.6, 0.08, 1.0);
     const rackSteelMat = new THREE.MeshStandardMaterial({
-      color: 0x1e293b,
-      metalness: 0.9,
-      roughness: 0.3,
+      color: 0x554b76,
+      metalness: 0.3,
+      roughness: 0.6,
     });
 
     const healthyMat = new THREE.MeshStandardMaterial({
-      color: 0x00f0ff,
-      emissive: 0x00a3cc,
-      emissiveIntensity: 0.35,
+      color: 0x0d9488,
+      emissive: 0x0d9488,
+      emissiveIntensity: 0.08,
       roughness: 0.2,
       metalness: 0.5,
     });
@@ -150,22 +190,22 @@ export default function WarehouseDigitalTwin({
     const lowMat = new THREE.MeshStandardMaterial({
       color: 0xf59e0b,
       emissive: 0xd97706,
-      emissiveIntensity: 0.45,
+      emissiveIntensity: 0.12,
       roughness: 0.2,
       metalness: 0.5,
     });
 
     const outMat = new THREE.MeshBasicMaterial({
-      color: 0xef4444,
+      color: 0xdc2626,
       wireframe: true,
       transparent: true,
-      opacity: 0.45,
+      opacity: 0.72,
     });
 
     const reservedAccentMat = new THREE.MeshStandardMaterial({
-      color: 0x8b5cf6,
+      color: 0x7c3aed,
       emissive: 0x7c3aed,
-      emissiveIntensity: 0.5,
+      emissiveIntensity: 0.12,
     });
 
     // Create 4 Industrial Rack Bays (representing storage zones)
@@ -233,7 +273,7 @@ export default function WarehouseDigitalTwin({
     const agvGroup2 = new THREE.Group();
 
     const agvBodyGeo = new THREE.BoxGeometry(1.4, 0.3, 0.9);
-    const agvMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.8, roughness: 0.2 });
+    const agvMat = new THREE.MeshStandardMaterial({ color: 0x6d28d9, metalness: 0.4, roughness: 0.45 });
 
     const agv1 = new THREE.Mesh(agvBodyGeo, agvMat);
     agv1.position.y = 0.2;
@@ -245,7 +285,7 @@ export default function WarehouseDigitalTwin({
 
     // AGV Headlights
     const lightGeo = new THREE.SphereGeometry(0.08, 8, 8);
-    const lightMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+    const lightMat = new THREE.MeshBasicMaterial({ color: 0x0d9488 });
     const hl1 = new THREE.Mesh(lightGeo, lightMat);
     hl1.position.set(0.7, 0.2, 0.3);
     const hl2 = new THREE.Mesh(lightGeo, lightMat);
@@ -260,7 +300,7 @@ export default function WarehouseDigitalTwin({
     // Holographic Selection Wireframe
     const selectionGeo = new THREE.BoxGeometry(0.65, 0.65, 0.65);
     const selectionMat = new THREE.MeshBasicMaterial({
-      color: 0x00f0ff,
+      color: 0x6d28d9,
       wireframe: true,
       transparent: true,
       opacity: 0,
@@ -295,10 +335,12 @@ export default function WarehouseDigitalTwin({
     let isDragging = false;
     let prevMouseX = 0;
     let prevMouseY = 0;
-    const spherical = new THREE.Spherical(30, Math.PI / 3.2, Math.PI / 4.2);
+    const spherical = new THREE.Spherical();
+    const orbitOffset = new THREE.Vector3();
 
     const onMouseDown = (e: MouseEvent) => {
       if (e.button === 0) {
+        spherical.setFromVector3(orbitOffset.copy(camera.position).sub(orbitTargetRef.current));
         isDragging = true;
         prevMouseX = e.clientX;
         prevMouseY = e.clientY;
@@ -317,8 +359,8 @@ export default function WarehouseDigitalTwin({
       spherical.theta -= deltaX * 0.006;
       spherical.phi = Math.max(0.1, Math.min(Math.PI / 2.05, spherical.phi - deltaY * 0.006));
 
-      camera.position.setFromSpherical(spherical);
-      camera.lookAt(0, 2, 0);
+      camera.position.copy(orbitOffset.setFromSpherical(spherical).add(orbitTargetRef.current));
+      camera.lookAt(orbitTargetRef.current);
     };
 
     mount.addEventListener("mousedown", onMouseDown);
@@ -328,12 +370,14 @@ export default function WarehouseDigitalTwin({
     // Resize Handler
     const onResize = () => {
       if (!mount) return;
-      width = mount.clientWidth;
-      height = mount.clientHeight;
+      width = Math.max(1, mount.clientWidth);
+      height = Math.max(1, mount.clientHeight);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       activeRenderer.setSize(width, height);
     };
+    const resizeObserver = new ResizeObserver(onResize);
+    resizeObserver.observe(mount);
     window.addEventListener("resize", onResize);
 
     // Animation Loop
@@ -388,6 +432,7 @@ export default function WarehouseDigitalTwin({
       mount.removeEventListener("mousedown", onMouseDown);
       window.removeEventListener("mouseup", onMouseUp);
       mount.removeEventListener("mousemove", onDragMove);
+      resizeObserver.disconnect();
       window.removeEventListener("resize", onResize);
       activeRenderer.domElement.removeEventListener("webglcontextlost", onContextLost);
       cameraRef.current = null;
@@ -416,7 +461,7 @@ export default function WarehouseDigitalTwin({
   return (
     <div className="warehouse-3d-card" style={{ position: "relative", width: "100%", borderRadius: "16px", overflow: "hidden", border: "1px solid rgba(56, 189, 248, 0.22)", boxShadow: "0 24px 60px rgba(0, 0, 0, 0.75)" }}>
       {/* 3D Canvas Mount */}
-      <div ref={mountRef} style={{ width: "100%", height: "480px", cursor: "grab" }} />
+      <div ref={mountRef} style={{ width: "100%", height: "var(--twin-height, 480px)", cursor: "grab" }} />
       {webglUnavailable && (
         <div role="status" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", textAlign: "center", color: "var(--foreground-dim)", background: "rgba(10, 18, 34, 0.9)", zIndex: 1 }}>
           3D warehouse view is unavailable on this device. Use the Data Grid to inspect inventory.
@@ -430,39 +475,22 @@ export default function WarehouseDigitalTwin({
 
       {/* Top HUD Controls Overlay */}
       <div style={{ position: "absolute", top: "14px", left: "16px", right: "16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", pointerEvents: "auto", zIndex: 10 }}>
-        {/* Warehouse Selector */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(10, 18, 34, 0.85)", backdropFilter: "blur(12px)", padding: "6px 12px", borderRadius: "8px", border: "1px solid rgba(56, 189, 248, 0.25)" }}>
-          <span style={{ fontSize: "10px", color: "var(--cyan)", fontFamily: "var(--font-geist-mono), monospace", fontWeight: 700 }}>WAREHOUSE:</span>
-          <select
-            value={selectedWarehouse}
-            onChange={(e) => setSelectedWarehouse(e.target.value === "ALL" ? "ALL" : Number(e.target.value))}
-            style={{ background: "transparent", border: "none", color: "#fff", fontSize: "12px", fontWeight: 600, outline: "none", cursor: "pointer" }}
-          >
-            <option value="ALL" style={{ background: "#0b1426" }}>All Warehouses ({warehouses.length})</option>
-            {warehouses.map((w) => (
-              <option key={w.warehouse_id} value={w.warehouse_id} style={{ background: "#0b1426" }}>
-                {w.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* View Camera Presets */}
-        <div style={{ display: "flex", gap: "6px", background: "rgba(10, 18, 34, 0.85)", backdropFilter: "blur(12px)", padding: "4px 8px", borderRadius: "8px", border: "1px solid rgba(56, 189, 248, 0.2)" }}>
-          <span style={{ fontSize: "10px", color: "var(--foreground-muted)", alignSelf: "center", marginRight: "4px", fontFamily: "var(--font-geist-mono), monospace" }}>CAMERA:</span>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", background: "rgba(22, 11, 53, 0.92)", backdropFilter: "blur(12px)", padding: "7px 10px", borderRadius: "9px", border: "1px solid rgba(196, 181, 253, 0.55)" }}>
+          <span style={{ fontSize: "14px", color: "#ddd6fe", alignSelf: "center", marginRight: "4px", fontFamily: "var(--font-geist-mono), monospace", fontWeight: 700 }}>CAMERA:</span>
           {(["iso", "aisle", "top"] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => { setViewPreset(mode); playHoverSound(); }}
               style={{
-                padding: "4px 8px",
+                padding: "6px 10px",
                 borderRadius: "5px",
-                fontSize: "10px",
+                fontSize: "14px",
                 fontFamily: "var(--font-geist-mono), monospace",
                 fontWeight: 600,
-                color: viewPreset === mode ? "#fff" : "var(--foreground-muted)",
-                background: viewPreset === mode ? "rgba(0, 240, 255, 0.22)" : "transparent",
-                border: viewPreset === mode ? "1px solid var(--cyan)" : "1px solid transparent",
+                color: viewPreset === mode ? "#fff" : "#ddd6fe",
+                background: viewPreset === mode ? "#6d28d9" : "rgba(196, 181, 253, 0.12)",
+                border: viewPreset === mode ? "1px solid #c4b5fd" : "1px solid rgba(196, 181, 253, 0.22)",
               }}
             >
               {mode.toUpperCase()}
@@ -557,7 +585,7 @@ export default function WarehouseDigitalTwin({
       )}
 
       {/* Legend pill bottom left */}
-      <div style={{ position: "absolute", bottom: "16px", left: "16px", display: "flex", gap: "12px", background: "rgba(10, 18, 34, 0.8)", backdropFilter: "blur(8px)", padding: "6px 12px", borderRadius: "8px", border: "1px solid rgba(56, 189, 248, 0.15)", fontSize: "10px", fontFamily: "var(--font-geist-mono), monospace" }}>
+      <div style={{ position: "absolute", bottom: "16px", left: "16px", display: "flex", flexWrap: "wrap", gap: "10px", background: "rgba(10, 18, 34, 0.8)", backdropFilter: "blur(8px)", padding: "7px 12px", borderRadius: "8px", border: "1px solid rgba(56, 189, 248, 0.15)", fontSize: "13px", fontFamily: "var(--font-geist-mono), monospace" }}>
         <span style={{ display: "flex", alignItems: "center", gap: "5px", color: "var(--teal)" }}>
           <span style={{ width: "8px", height: "8px", background: "var(--cyan)", borderRadius: "2px" }} /> Healthy
         </span>

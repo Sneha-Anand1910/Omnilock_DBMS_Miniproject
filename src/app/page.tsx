@@ -4,7 +4,6 @@ import { getDashboard, LOW_STOCK_THRESHOLD } from "@/lib/dashboard";
 import { Icon } from "@/components/omnilock/icons";
 import { RefreshButton } from "@/components/omnilock/shell";
 import { DataTable, EmptyState, Panel, StatCard, StatusBadge } from "@/components/omnilock/ui";
-import DashboardHoloSphere from "@/components/3d/dashboard-holo-sphere";
 
 export default async function Home() {
   await connection();
@@ -17,7 +16,6 @@ export default async function Home() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">
-            <span className="hud-corner hud-tl" />
             YOUR OPERATIONS, AT A GLANCE
           </p>
           <h1>Dashboard overview</h1>
@@ -39,15 +37,6 @@ export default async function Home() {
             : "Statistics could not be loaded. Check the server connection and refresh."}
         </span>
         <span className="banner-tag">{data ? "LIVE DATABASE" : "NO DATA LOADED"}</span>
-      </div>
-
-      {/* Central 3D Holographic Focal Point */}
-      <div style={{ marginBottom: "28px" }}>
-        <DashboardHoloSphere
-          totalProducts={stats?.products}
-          totalOrders={stats?.orders}
-          activeHolds={stats?.active}
-        />
       </div>
 
       <div className="stats-grid">
@@ -141,7 +130,7 @@ export default async function Home() {
               <div className="availability-chart" aria-label="Relative available stock for the lowest-availability product locations">
                 <div className="availability-chart-heading">
                   <strong>Availability by location</strong>
-                  <span>Relative units available</span>
+                  <span>Available</span>
                 </div>
                 {data.inventory.map((item, index) => {
                   const width = maxAvailable > 0 ? Math.min(100, (Math.max(0, item.available) / maxAvailable) * 100) : 0;
@@ -206,11 +195,7 @@ export default async function Home() {
           </Panel>
 
           <section className="quick-panel">
-            <span className="quick-icon">
-              <Icon name="shipments" />
-            </span>
             <h2>Keep operations moving</h2>
-            <p>Find the right workspace for each step of the order lifecycle.</p>
             <Link href="/reservations">
               Review reservations <Icon name="arrow" />
             </Link>
@@ -222,13 +207,6 @@ export default async function Home() {
             </Link>
           </section>
 
-          <div className="info-note">
-            <Icon name="lock" />
-            <p>
-              <strong>A clear view of your data</strong>
-              This dashboard reads your existing records. Refresh to see the latest changes.
-            </p>
-          </div>
         </div>
       </div>
     </>

@@ -1,0 +1,74 @@
+.page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  background: #f8f7ff;
+}
+.visual {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 48px;
+  overflow: hidden;
+  color: #fff;
+  background: radial-gradient(circle at 50% 38%, #4b2a86 0, #30175c 48%, #160b35 100%);
+}
+.visualInner { width: min(100%, 720px); text-align: center; }
+.orbit { position: relative; height: min(54vw, 520px); min-height: 340px; max-height: 520px; margin: 0 auto 30px; }
+.visual h1 { margin: 0 0 18px; color: #fff; font-size: clamp(48px, 3.6vw, 52px); line-height: 1.12; letter-spacing: -.03em; }
+.visual .subtitle { max-width: 540px; margin: auto; color: #e9e4ff; font-size: 18px; line-height: 1.55; }
+.formSide { display: grid; place-items: center; padding: 42px 32px; }
+.formCard {
+  width: min(100%, 520px);
+  padding: clamp(36px, 3vw, 40px);
+  border: 1px solid #ddd6fe;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 24px 65px rgba(46, 16, 101, .1);
+}
+.brand { display: flex; align-items: center; gap: 14px; margin-bottom: 36px; color: #2e1065; font-size: 30px; font-weight: 800; }
+.brand > span:last-child span { color: #7c3aed; }
+.brandMark { width: 50px; height: 50px; display: grid; place-items: center; border-radius: 13px; background: linear-gradient(135deg, #6d28d9, #8b5cf6); color: #fff; }
+.brandMark svg { width: 27px; height: 27px; }
+.kicker { margin: 0 0 8px; color: #6d28d9; font-size: 12px; font-weight: 750; letter-spacing: 1px; }
+.formCard h2 { margin: 0 0 8px; color: #2e1065; font-size: clamp(30px, 2.5vw, 32px); line-height: 1.2; }
+.description { margin: 0 0 24px; color: #526078; font-size: 15px; line-height: 1.55; }
+.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 24px; padding: 5px; border-radius: 12px; background: #f5f3ff; }
+.tabs button { min-height: 48px; border-radius: 9px; color: #5b4d73; font-size: 16px; font-weight: 650; }
+.tabs button.activeTab { background: #fff; color: #5b21b6; box-shadow: 0 2px 9px rgba(46,16,101,.12); }
+.form { display: grid; gap: 16px; }
+.form label { display: grid; gap: 8px; color: #2e1065; font-size: 16px; font-weight: 650; }
+.form input { width: 100%; height: 50px; padding: 10px 14px; border: 1.5px solid #c4b5fd; border-radius: 10px; background: #fff; color: #2e1065; font: inherit; font-size: 16px; font-weight: 400; }
+.form input:focus { outline: 0; border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,.15); }
+.form input::placeholder { color: #94a3b8; font-size: 16px; font-weight: 400; }
+.passwordField { position: relative; display: block; }
+.passwordField input { padding-right: 72px; }
+.visibility { position: absolute; top: 50%; right: 9px; transform: translateY(-50%); min-width: 60px; min-height: 36px; border-radius: 7px; color: #6d28d9; font-size: 15px; font-weight: 650; }
+.visibility:hover { background: #ede9fe; }
+.optional { color: #64748b; font-weight: 400; }
+.labelLine { display: flex; align-items: baseline; gap: 6px; }
+.passwordHint { color: #64748b; font-size: 13px; font-weight: 400; line-height: 1.4; }
+.error { margin: 0; padding: 10px 12px; border: 1px solid #fecaca; border-radius: 9px; background: #fff1f2; color: #991b1b; font-size: 14px; line-height: 1.45; }
+.submit, .continueButton { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 50px; border-radius: 10px; background: linear-gradient(135deg, #6d28d9, #8b5cf6); color: #fff; font-size: 16px; font-weight: 700; box-shadow: 0 8px 20px rgba(109,40,217,.2); }
+.submit { margin-top: 6px; width: 100%; }
+.submit:disabled { opacity: .65; cursor: wait; }
+.continueButton { margin-top: 24px; padding: 0 18px; text-decoration: none; }
+.continueButton span { transition: transform .2s ease; }
+.continueButton:hover span { transform: translateX(5px); }
+.successMark { display: grid; place-items: center; width: 54px; height: 54px; margin-bottom: 20px; border-radius: 50%; background: #ede9fe; color: #6d28d9; font-size: 26px; }
+.complete .description { margin-top: 12px; }
+@media (max-width: 850px) {
+  .page { grid-template-columns: 1fr; }
+  .visual { min-height: auto; padding: 28px 24px 38px; }
+  .orbit { height: 320px; min-height: 320px; margin-bottom: 12px; }
+  .visual h1 { font-size: clamp(38px, 5vw, 48px); }
+  .formSide { padding: 32px 20px 48px; }
+}
+@media (max-width: 480px) {
+  .visual { padding-inline: 16px; }
+  .orbit { height: 260px; min-height: 260px; }
+  .visual h1 { font-size: 38px; }
+  .formCard { padding: 24px 20px; }
+  .brand { margin-bottom: 26px; }
+}
+@media (prefers-reduced-motion: reduce) { .continueButton span { transition: none; } }

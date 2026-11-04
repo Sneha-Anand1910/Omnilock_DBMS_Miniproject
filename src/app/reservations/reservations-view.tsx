@@ -15,8 +15,8 @@ export default function ReservationsView({ data }: { data: ReservationData | nul
   const [customer, setCustomer] = useState("");
   const [product, setProduct] = useState("");
   const [warehouse, setWarehouse] = useState("");
-  const [quantity, setQuantity] = useState("1");
-  const [channel, setChannel] = useState("WEBSITE");
+  const [quantity, setQuantity] = useState("");
+  const [channel, setChannel] = useState("");
   const [sending, setSending] = useState(false);
   const [refreshing, startTransition] = useTransition();
   const [notice, setNotice] = useState<{ error: boolean; text: string } | null>(null);
@@ -86,7 +86,8 @@ export default function ReservationsView({ data }: { data: ReservationData | nul
           text: `Reservation created for order #${result.orderId}. The database sets its expiry to 15 minutes after creation.`,
         });
         playSuccessSound();
-        setQuantity("1");
+        setQuantity("");
+        setChannel("");
         setProduct("");
         setWarehouse("");
       } else if (response.status === 400 && result?.success === false) {
@@ -211,13 +212,15 @@ export default function ReservationsView({ data }: { data: ReservationData | nul
                     min="1"
                     max="2147483647"
                     required
+                    placeholder="Enter quantity"
                     value={quantity}
                     onChange={(event) => setQuantity(event.target.value)}
                   />
                 </label>
                 <label>
                   Sales channel
-                  <select value={channel} onChange={(event) => setChannel(event.target.value)}>
+                  <select required value={channel} onChange={(event) => setChannel(event.target.value)}>
+                    <option value="">Select sales channel</option>
                     <option value="WEBSITE">Website</option>
                     <option value="MOBILE">Mobile</option>
                     <option value="STORE">Store</option>

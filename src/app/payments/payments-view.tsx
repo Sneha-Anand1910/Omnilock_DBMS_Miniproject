@@ -231,7 +231,7 @@ export default function PaymentsView({ data }: { data: PaymentsData | null }) {
                     </td>
                     <td>{payment.customer}</td>
                     <td className="numeric">
-                      <strong style={{ color: "#fff" }}>{payment.amount}</strong>
+                      <strong style={{ color: "#2E1065" }}>{payment.amount}</strong>
                     </td>
                     <td>{payment.method.replaceAll("_", " ")}</td>
                     <td>

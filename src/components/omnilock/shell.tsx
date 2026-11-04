@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Icon } from "./icons";
 import { navigation } from "./navigation";
 import {
@@ -61,6 +61,59 @@ export function SoundToggle() {
       <Icon name={enabled ? "soundOn" : "soundOff"} />
       <span className="audio-label">{enabled ? "AUDIO ON" : "MUTED"}</span>
     </button>
+  );
+}
+
+function ProfileMenu() {
+  const [user, setUser] = useState<{ name: string; email: string; phone: string | null; role: "STAFF" | "ADMIN" } | null>(null);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState("");
+  const container = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then(async response => response.ok ? response.json() : null)
+      .then(result => { if (result?.success) setUser(result.user); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: MouseEvent | KeyboardEvent) => {
+      if (event instanceof KeyboardEvent && event.key === "Escape") setOpen(false);
+      if (event instanceof MouseEvent && !container.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", close); };
+  }, [open]);
+
+  async function logout() {
+    setError("");
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      if (!response.ok) throw new Error("Sign out failed");
+      window.location.assign("/login");
+    } catch {
+      setError("Could not sign out. Please retry.");
+    }
+  }
+
+  const initials = user?.name.trim().split(/\s+/).slice(0, 2).map(part => part[0]?.toUpperCase()).join("") || "OL";
+  return (
+    <div className="profile-wrap" ref={container}>
+      <button className="avatar" type="button" title={user?.name ?? "Profile"} aria-label="Open account details" aria-expanded={open} onClick={() => setOpen(value => !value)}>
+        <span>{initials}</span><span className="avatar-ring" />
+      </button>
+      {open && <div className="profile-popover">
+        <strong>{user?.name ?? "Account"}</strong>
+        <span>{user?.email ?? "Loading account…"}</span>
+        {user && <span>{user.role === "ADMIN" ? "Administrator" : "Staff"}</span>}
+        {user?.phone && <span>{user.phone}</span>}
+        {error && <p role="alert">{error}</p>}
+        <button type="button" onClick={logout}>Log out</button>
+      </div>}
+    </div>
   );
 }
 
@@ -201,21 +254,6 @@ export function Sidebar({
           })}
         </nav>
 
-        <div className="sidebar-bottom">
-          <div className="workspace-status-badge">
-            <span className="status-radar-beacon">
-              <span className="beacon-ping" />
-              <span className="beacon-core" />
-            </span>
-            {!rail && (
-              <div className="workspace-info">
-                <strong>OmniLock workspace</strong>
-                <small>DBMS · Level 3 · ONLINE</small>
-              </div>
-            )}
-            {rail && <span className="rail-avatar">OL</span>}
-          </div>
-        </div>
       </aside>
     </>
   );
@@ -294,16 +332,14 @@ export function Header({ open, expanded }: { open: () => void; expanded: boolean
           </span>
           <span className="env-text">OPERATIONS WORKSPACE</span>
         </span>
-        <div className="avatar" title="OmniLock Operations Admin">
-          <span>OL</span>
-          <span className="avatar-ring" />
-        </div>
+        <ProfileMenu />
       </div>
     </header>
   );
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [rail, setRail] = useState(false);
 
@@ -332,6 +368,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [open]);
 
+  if (pathname === "/login") return <>{children}</>;
+
   return (
     <div className={`app-shell ${rail ? "has-rail-nav" : ""}`}>
       <div className="cosmic-grid-overlay" aria-hidden="true" />
@@ -351,21 +389,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className={`main-shell ${rail ? "main-shell-rail" : ""}`}>
         <Header open={() => setOpen(true)} expanded={open} />
-        <main id="main-content" className="workspace">
+        <main id="main-content" className="workspace" tabIndex={-1}>
           {children}
         </main>
-        <footer className="footer">
-          <div className="footer-left">
-            <span className="footer-brand">OmniLock</span>
-            <span className="footer-dot">·</span>
-            <span>Omnichannel Inventory &amp; Order Fulfillment Platform</span>
-          </div>
-          <div className="footer-right">
-            <span className="sys-status">SYS 2035 · SPATIAL KERNEL v3.4</span>
-            <span className="footer-dot">·</span>
-            <span>One workspace. Every operation.</span>
-          </div>
-        </footer>
       </div>
     </div>
   );

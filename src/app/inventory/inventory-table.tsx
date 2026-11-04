@@ -55,6 +55,7 @@ export default function InventoryTable({
         (record.sku ?? "").toLowerCase().includes(query))
   );
   const hasFilters = search !== "" || warehouse !== "";
+  const selectedWarehouseName = warehouses.find((option) => String(option.warehouse_id) === warehouse)?.name;
 
   const handleTwinRecordSelect = (record: InventoryRecord) => {
     setSearch(record.sku || record.product_name);
@@ -68,10 +69,18 @@ export default function InventoryTable({
       {/* Top Workspace Viewport Mode Switcher */}
       <div className={styles.twinHeaderBar}>
         <div>
-          <span className={styles.twinEyebrow}>SPATIAL INVENTORY MATRIX</span>
-          <h2 className={styles.twinTitle}>Warehouse Digital Twin &amp; Stock Grid</h2>
+          <h2 className={styles.twinTitle}>Warehouse Digital Twin</h2>
+          <p className={styles.twinDescription}>Explore warehouse stock visually.</p>
         </div>
-        <div className={styles.viewModePills}>
+        <div className={styles.headerControls}>
+          <label className={styles.sharedWarehouse} htmlFor="inventory-warehouse">
+            Select Warehouse
+            <select id="inventory-warehouse" value={warehouse} onChange={(event) => setWarehouse(event.target.value)}>
+              <option value="">All warehouses</option>
+              {warehouses.map((option) => <option key={option.warehouse_id} value={String(option.warehouse_id)}>{option.name}</option>)}
+            </select>
+          </label>
+          <div className={styles.viewModePills}>
           <button
             type="button"
             className={`${styles.modePill} ${viewMode === "twin" ? styles.modeActive : ""}`}
@@ -102,15 +111,20 @@ export default function InventoryTable({
           >
             <Icon name="viewTable" /> DATA GRID
           </button>
+          </div>
         </div>
       </div>
 
+      <div className={`${styles.viewContent} ${viewMode === "split" ? styles.splitView : ""}`}>
       {/* 3D Digital Twin Section */}
       {(viewMode === "twin" || viewMode === "split") && (
         <section className={styles.digitalTwinSection} aria-label="3D Warehouse Digital Twin">
+          <p className={styles.warehouseContext} role="status">
+            {selectedWarehouseName ? `Showing inventory for ${selectedWarehouseName}` : "Showing inventory for all warehouses"}
+          </p>
           <WarehouseDigitalTwin
             records={records}
-            warehouses={warehouses}
+            selectedWarehouse={warehouse}
             threshold={threshold}
             onSelectRecord={handleTwinRecordSelect}
           />
@@ -149,21 +163,6 @@ export default function InventoryTable({
                 placeholder="Search products or SKUs…"
               />
             </div>
-            <div className={styles.warehouse}>
-              <label htmlFor="inventory-warehouse">Warehouse</label>
-              <select
-                id="inventory-warehouse"
-                value={warehouse}
-                onChange={(event) => setWarehouse(event.target.value)}
-              >
-                <option value="">All warehouses</option>
-                {warehouses.map((option) => (
-                  <option key={option.warehouse_id} value={String(option.warehouse_id)}>
-                    {option.name}
-                  </option>
-                ))}
-              </select>
-            </div>
             <button
               className="button"
               disabled={!hasFilters}
@@ -178,7 +177,7 @@ export default function InventoryTable({
           </div>
 
           <div className={styles.results} role="status" aria-live="polite">
-            Showing {filtered.length} of {records.length} inventory records
+            Showing {filtered.length} of {records.length} inventory records{selectedWarehouseName ? ` for ${selectedWarehouseName}` : ""}
           </div>
 
           {!records.length ? (
@@ -186,9 +185,10 @@ export default function InventoryTable({
           ) : !filtered.length ? (
             <EmptyState message="No inventory matches your filters. Try another product, SKU, or warehouse, or clear the filters." />
           ) : (
+            <div className={viewMode === "split" ? styles.compactTable : undefined}>
             <DataTable
               caption="Inventory quantities by product and warehouse"
-              headers={[
+              headers={viewMode === "split" ? ["Product", "Warehouse", "Available", "Status"] : [
                 "Product name",
                 "SKU",
                 "Warehouse",
@@ -207,6 +207,12 @@ export default function InventoryTable({
                     : "AVAILABLE";
                 return (
                   <tr key={record.inventory_id}>
+                    {viewMode === "split" ? <>
+                      <td><strong>{record.product_name}</strong></td>
+                      <td>{record.warehouse}</td>
+                      <td className="numeric"><span className={`${styles.quantity} ${record.available <= 0 ? styles.out : record.available <= threshold ? styles.low : styles.available}`}>{record.available.toLocaleString("en-IN")}</span></td>
+                      <td><StatusBadge status={status} /></td>
+                    </> : <>
                     <td>
                       <strong>{record.product_name}</strong>
                     </td>
@@ -232,10 +238,12 @@ export default function InventoryTable({
                     <td>
                       <StatusBadge status={status} />
                     </td>
+                    </>}
                   </tr>
                 );
               })}
             </DataTable>
+            </div>
           )}
 
           <div className="panel-footnote">
@@ -245,6 +253,7 @@ export default function InventoryTable({
           </div>
         </Panel>
       )}
+      </div>
     </div>
   );
 }
