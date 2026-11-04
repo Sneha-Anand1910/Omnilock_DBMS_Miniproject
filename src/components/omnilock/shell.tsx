@@ -36,7 +36,11 @@ export function RefreshButton() {
 }
 
 export function SoundToggle() {
-  const [enabled, setEnabled] = useState(() => initSoundState());
+  const [enabled, setEnabled] = useState(false);
+
+  useEffect(() => {
+    setEnabled(initSoundState());
+  }, []);
 
   const handleToggle = () => {
     const next = !enabled;
@@ -301,14 +305,15 @@ export function Header({ open, expanded }: { open: () => void; expanded: boolean
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
-  const [rail, setRail] = useState(() => {
-    if (typeof window === "undefined") return false;
+  const [rail, setRail] = useState(false);
+
+  useEffect(() => {
     try {
-      return localStorage.getItem("omnilock_rail_mode") === "1";
+      setRail(localStorage.getItem("omnilock_rail_mode") === "1");
     } catch {
-      return false;
+      // Keep the server-rendered default when storage is unavailable.
     }
-  });
+  }, []);
 
   const toggleRail = () => {
     const next = !rail;

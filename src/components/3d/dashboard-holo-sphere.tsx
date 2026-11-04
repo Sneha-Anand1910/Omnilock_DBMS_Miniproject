@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
 export default function DashboardHoloSphere({
@@ -13,6 +13,7 @@ export default function DashboardHoloSphere({
   activeHolds?: string;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
+  const [webglUnavailable, setWebglUnavailable] = useState(false);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -25,10 +26,25 @@ export default function DashboardHoloSphere({
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
     camera.position.set(0, 1.2, 5.5);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    mount.appendChild(renderer.domElement);
+    let renderer: THREE.WebGLRenderer | undefined;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      mount.appendChild(renderer.domElement);
+    } catch {
+      renderer?.dispose();
+      queueMicrotask(() => setWebglUnavailable(true));
+      return;
+    }
+    const activeRenderer = renderer;
+    let contextLost = false;
+    const onContextLost = (event: Event) => {
+      event.preventDefault();
+      contextLost = true;
+      setWebglUnavailable(true);
+    };
+    activeRenderer.domElement.addEventListener("webglcontextlost", onContextLost);
 
     // Group for mouse parallax tilt
     const rootGroup = new THREE.Group();
@@ -139,7 +155,7 @@ export default function DashboardHoloSphere({
       height = mount.clientHeight;
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
-      renderer.setSize(width, height);
+      activeRenderer.setSize(width, height);
     };
     window.addEventListener("resize", onResize);
 
@@ -147,6 +163,7 @@ export default function DashboardHoloSphere({
     const clock = new THREE.Clock();
 
     const animate = () => {
+      if (contextLost) return;
       animationId = requestAnimationFrame(animate);
       if (!isVisible) return;
 
@@ -183,7 +200,12 @@ export default function DashboardHoloSphere({
       // Subtle particle float
       particlePoints.rotation.y = elapsed * 0.03;
 
-      renderer.render(scene, camera);
+      try {
+        activeRenderer.render(scene, camera);
+      } catch {
+        contextLost = true;
+        setWebglUnavailable(true);
+      }
     };
 
     animate();
@@ -193,6 +215,7 @@ export default function DashboardHoloSphere({
       observer.disconnect();
       mount.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("resize", onResize);
+      activeRenderer.domElement.removeEventListener("webglcontextlost", onContextLost);
 
       // Clean up geometries and materials
       sphereGeo.dispose();
@@ -207,10 +230,10 @@ export default function DashboardHoloSphere({
       nodeMat.dispose();
       particleGeo.dispose();
       particleMat.dispose();
-      renderer.dispose();
+      activeRenderer.dispose();
 
-      if (mount.contains(renderer.domElement)) {
-        mount.removeChild(renderer.domElement);
+      if (mount.contains(activeRenderer.domElement)) {
+        mount.removeChild(activeRenderer.domElement);
       }
     };
   }, []);
@@ -242,6 +265,11 @@ export default function DashboardHoloSphere({
           cursor: "grab",
         }}
       />
+      {webglUnavailable && (
+        <div role="status" style={{ position: "relative", zIndex: 1, color: "var(--foreground-dim)", fontSize: "12px", textAlign: "center", padding: "20px" }}>
+          3D visualization is unavailable on this device. Dashboard data remains available below.
+        </div>
+      )}
 
       <span className="hud-corner hud-tl" />
       <span className="hud-corner hud-tr" />

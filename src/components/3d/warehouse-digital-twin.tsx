@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { InventoryRecord, WarehouseOption } from "@/lib/inventory";
 import { playHoverSound, playInspectSound } from "@/lib/sound";
@@ -17,14 +17,34 @@ export default function WarehouseDigitalTwin({
   onSelectRecord?: (record: InventoryRecord) => void;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const viewPresetRef = useRef<"iso" | "aisle" | "top">("iso");
+  const onSelectRecordRef = useRef(onSelectRecord);
+  onSelectRecordRef.current = onSelectRecord;
+  const [webglUnavailable, setWebglUnavailable] = useState(false);
   const [selectedWarehouse, setSelectedWarehouse] = useState<number | "ALL">("ALL");
   const [inspectedRecord, setInspectedRecord] = useState<InventoryRecord | null>(null);
   const [viewPreset, setViewPreset] = useState<"iso" | "aisle" | "top">("iso");
+  viewPresetRef.current = viewPreset;
 
   // Filter records by selected warehouse
-  const activeRecords = records.filter(
-    (r) => selectedWarehouse === "ALL" || r.warehouse_id === selectedWarehouse
+  const activeRecords = useMemo(
+    () => records.filter((r) => selectedWarehouse === "ALL" || r.warehouse_id === selectedWarehouse),
+    [records, selectedWarehouse]
   );
+
+  useEffect(() => {
+    const camera = cameraRef.current;
+    if (!camera) return;
+    const targets = {
+      iso: { pos: [16, 14, 22], look: [0, 2, 0] },
+      aisle: { pos: [-2, 3.5, 9], look: [-2, 2.5, -4] },
+      top: { pos: [0, 26, 0.1], look: [0, 0, 0] },
+    } as const;
+    const target = targets[viewPreset];
+    camera.position.set(target.pos[0], target.pos[1], target.pos[2]);
+    camera.lookAt(target.look[0], target.look[1], target.look[2]);
+  }, [viewPreset]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -38,15 +58,38 @@ export default function WarehouseDigitalTwin({
     scene.fog = new THREE.FogExp2(0x040814, 0.022);
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    camera.position.set(16, 14, 22);
-    camera.lookAt(0, 2, 0);
+    const initialTargets = {
+      iso: { pos: [16, 14, 22], look: [0, 2, 0] },
+      aisle: { pos: [-2, 3.5, 9], look: [-2, 2.5, -4] },
+      top: { pos: [0, 26, 0.1], look: [0, 0, 0] },
+    } as const;
+    const initialTarget = initialTargets[viewPresetRef.current];
+    camera.position.set(initialTarget.pos[0], initialTarget.pos[1], initialTarget.pos[2]);
+    camera.lookAt(initialTarget.look[0], initialTarget.look[1], initialTarget.look[2]);
+    cameraRef.current = camera;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    mount.appendChild(renderer.domElement);
+    let renderer: THREE.WebGLRenderer | undefined;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      mount.appendChild(renderer.domElement);
+    } catch {
+      renderer?.dispose();
+      cameraRef.current = null;
+      queueMicrotask(() => setWebglUnavailable(true));
+      return;
+    }
+    const activeRenderer = renderer;
+    let contextLost = false;
+    const onContextLost = (event: Event) => {
+      event.preventDefault();
+      contextLost = true;
+      setWebglUnavailable(true);
+    };
+    activeRenderer.domElement.addEventListener("webglcontextlost", onContextLost);
 
     // Ambient & Directional Lighting
     const ambientLight = new THREE.AmbientLight(0x0f2038, 1.8);
@@ -241,23 +284,12 @@ export default function WarehouseDigitalTwin({
         playInspectSound();
         const rec = hoveredCrate.userData.record as InventoryRecord;
         setInspectedRecord(rec);
-        if (onSelectRecord) onSelectRecord(rec);
+        onSelectRecordRef.current?.(rec);
       }
     };
 
     mount.addEventListener("mousemove", onPointerMove);
     mount.addEventListener("click", onClick);
-
-    // Camera preset coordinates
-    const cameraTargets: Record<string, { pos: THREE.Vector3; look: THREE.Vector3 }> = {
-      iso: { pos: new THREE.Vector3(16, 14, 22), look: new THREE.Vector3(0, 2, 0) },
-      aisle: { pos: new THREE.Vector3(-2, 3.5, 9), look: new THREE.Vector3(-2, 2.5, -4) },
-      top: { pos: new THREE.Vector3(0, 26, 0.1), look: new THREE.Vector3(0, 0, 0) },
-    };
-
-    const initialCamera = cameraTargets[viewPreset] || cameraTargets.iso;
-    camera.position.copy(initialCamera.pos);
-    camera.lookAt(initialCamera.look);
 
     // Smooth Orbit Drag
     let isDragging = false;
@@ -300,7 +332,7 @@ export default function WarehouseDigitalTwin({
       height = mount.clientHeight;
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
-      renderer.setSize(width, height);
+      activeRenderer.setSize(width, height);
     };
     window.addEventListener("resize", onResize);
 
@@ -309,6 +341,7 @@ export default function WarehouseDigitalTwin({
     const clock = new THREE.Clock();
 
     const animate = () => {
+      if (contextLost) return;
       animationId = requestAnimationFrame(animate);
       const elapsed = clock.getElapsedTime();
 
@@ -338,7 +371,12 @@ export default function WarehouseDigitalTwin({
         selectionMat.opacity = 0;
       }
 
-      renderer.render(scene, camera);
+      try {
+        activeRenderer.render(scene, camera);
+      } catch {
+        contextLost = true;
+        setWebglUnavailable(true);
+      }
     };
 
     animate();
@@ -351,33 +389,39 @@ export default function WarehouseDigitalTwin({
       window.removeEventListener("mouseup", onMouseUp);
       mount.removeEventListener("mousemove", onDragMove);
       window.removeEventListener("resize", onResize);
+      activeRenderer.domElement.removeEventListener("webglcontextlost", onContextLost);
+      cameraRef.current = null;
 
-      // Dispose Geometries and Materials
-      floorGeo.dispose();
-      floorMat.dispose();
-      uprightGeo.dispose();
-      beamGeo.dispose();
-      rackSteelMat.dispose();
-      healthyMat.dispose();
-      lowMat.dispose();
-      outMat.dispose();
-      reservedAccentMat.dispose();
-      agvBodyGeo.dispose();
-      agvMat.dispose();
-      selectionGeo.dispose();
-      selectionMat.dispose();
-      renderer.dispose();
+      // Dispose every scene-owned resource, including per-crate and helper geometries.
+      const geometries = new Set<THREE.BufferGeometry>();
+      const materials = new Set<THREE.Material>();
+      scene.traverse((object) => {
+        if (object instanceof THREE.Mesh || object instanceof THREE.Line || object instanceof THREE.Points) {
+          geometries.add(object.geometry);
+          const meshMaterials = Array.isArray(object.material) ? object.material : [object.material];
+          meshMaterials.forEach((material) => materials.add(material));
+        }
+      });
+      geometries.forEach((geometry) => geometry.dispose());
+      materials.forEach((material) => material.dispose());
+      cyanSpot.shadow.map?.dispose();
+      activeRenderer.dispose();
 
-      if (mount.contains(renderer.domElement)) {
-        mount.removeChild(renderer.domElement);
+      if (mount.contains(activeRenderer.domElement)) {
+        mount.removeChild(activeRenderer.domElement);
       }
     };
-  }, [activeRecords, selectedWarehouse, threshold, onSelectRecord, viewPreset]);
+  }, [activeRecords, threshold]);
 
   return (
     <div className="warehouse-3d-card" style={{ position: "relative", width: "100%", borderRadius: "16px", overflow: "hidden", border: "1px solid rgba(56, 189, 248, 0.22)", boxShadow: "0 24px 60px rgba(0, 0, 0, 0.75)" }}>
       {/* 3D Canvas Mount */}
       <div ref={mountRef} style={{ width: "100%", height: "480px", cursor: "grab" }} />
+      {webglUnavailable && (
+        <div role="status" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", textAlign: "center", color: "var(--foreground-dim)", background: "rgba(10, 18, 34, 0.9)", zIndex: 1 }}>
+          3D warehouse view is unavailable on this device. Use the Data Grid to inspect inventory.
+        </div>
+      )}
 
       <span className="hud-corner hud-tl" />
       <span className="hud-corner hud-tr" />
@@ -501,7 +545,7 @@ export default function WarehouseDigitalTwin({
             <button
               className="button"
               onClick={() => {
-                if (onSelectRecord) onSelectRecord(inspectedRecord);
+                onSelectRecord?.(inspectedRecord);
                 playInspectSound();
               }}
               style={{ minHeight: "28px", padding: "4px 10px", fontSize: "10px" }}
