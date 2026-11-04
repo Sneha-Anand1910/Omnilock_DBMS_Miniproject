@@ -163,7 +163,7 @@ BEGIN
 END;
 $$;
 
--- Preserve the original function signature for existing callers, while removing
+
 -- the unsafe implementation. Payment confirmation and reservation functions stay unchanged.
 CREATE OR REPLACE FUNCTION public.cancel_order(p_order_id integer)
 RETURNS text LANGUAGE plpgsql
