@@ -10,11 +10,13 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
+    "@types/three": "^0.187.0",
     "mongodb": "^7.8.0",
     "next": "16.4.2",
     "pg": "^8.23.1",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "three": "^0.187.0"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",

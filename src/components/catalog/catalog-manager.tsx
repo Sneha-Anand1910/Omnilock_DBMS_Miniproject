@@ -7,7 +7,7 @@ import "./catalog.css";
 type Kind = "products" | "warehouses";
 type Row = Record<string, string | number | null>;
 type Category = { category_id: number; category_name: string };
-type Query = { search: string; category: string; page: number };
+type Query = { search: string; category: string; page: number; minCapacity?: string; maxCapacity?: string };
 type Field = { key: string; label: string; required?: boolean; max?: number; multiline?: boolean; numeric?: boolean };
 const productFields: Field[] = [
   { key: "product_name", label: "Product name", required: true, max: 150 },
@@ -22,6 +22,7 @@ const warehouseFields: Field[] = [
   { key: "type", label: "Type", max: 50 },
   { key: "capacity", label: "Capacity", required: true, numeric: true },
 ];
+const warehouseTypes = ["Regional", "Distribution Center", "Fulfillment Center", "Central Warehouse", "Cold Storage"];
 class ApiError extends Error { constructor(message: string, public status: number) { super(message); } }
 async function request(url: string, init?: RequestInit): Promise<Record<string, unknown>> {
   const response = await fetch(url, { cache: "no-store", ...init });
@@ -51,6 +52,9 @@ export default function CatalogManager({ kind }: { kind: Kind }) {
   const fields = product ? productFields : warehouseFields;
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("");
+  const [minCapacity, setMinCapacity] = useState("");
+  const [maxCapacity, setMaxCapacity] = useState("");
+  const [warehouseTypeChoice, setWarehouseTypeChoice] = useState("");
   const [query, setQuery] = useState<Query>({ search: "", category: "", page: 1 });
   const [revision, setRevision] = useState(0);
   const [rows, setRows] = useState<Row[]>([]);
@@ -73,8 +77,28 @@ export default function CatalogManager({ kind }: { kind: Kind }) {
     activeRequest.current = controller;
     const current = () => !controller.signal.aborted && activeRequest.current === controller;
     setLoading(true); setLoadError(""); setRows([]);
-    const params = new URLSearchParams({ search: query.search, page: String(query.page), pageSize: "10", category_id: query.category });
-    request("/api/" + kind + "?" + params, { signal: controller.signal }).then(body => {
+    const capacityFiltered = !product && (query.minCapacity !== undefined && query.minCapacity !== "" || query.maxCapacity !== undefined && query.maxCapacity !== "");
+    const pageSize = capacityFiltered ? 100 : 10;
+    const params = new URLSearchParams({ search: query.search, page: String(capacityFiltered ? 1 : query.page), pageSize: String(pageSize), category_id: query.category });
+    const load = async () => {
+      const first = await request("/api/" + kind + "?" + params, { signal: controller.signal });
+      if (!capacityFiltered) return first;
+      if (!Array.isArray(first[kind]) || typeof first.total !== "number") throw new Error("Invalid listing response.");
+      const all = [...first[kind] as unknown[]];
+      for (let page = 2; page <= Math.ceil(first.total / pageSize); page++) {
+        if (controller.signal.aborted) return first;
+        params.set("page", String(page));
+        const part = await request("/api/" + kind + "?" + params, { signal: controller.signal });
+        if (!Array.isArray(part[kind])) throw new Error("Invalid listing response.");
+        all.push(...part[kind] as unknown[]);
+      }
+      const filtered = all.map(row => parseRow(row, false)).filter(row =>
+        (query.minCapacity === "" || query.minCapacity === undefined || Number(row.capacity) >= Number(query.minCapacity)) &&
+        (query.maxCapacity === "" || query.maxCapacity === undefined || Number(row.capacity) <= Number(query.maxCapacity))
+      );
+      return { ...first, [kind]: filtered.slice((query.page - 1) * 10, query.page * 10), total: filtered.length, page: query.page, pageSize: 10 };
+    };
+    load().then(body => {
       if (!Array.isArray(body[kind]) || typeof body.total !== "number" || !Number.isSafeInteger(body.total) || body.total < 0 || body.page !== query.page || body.pageSize !== 10) throw new Error("Invalid listing response.");
       const records = (body[kind] as unknown[]).map(row => parseRow(row, product));
       if (product && (!Array.isArray(body.categories) || body.categories.some(item => !item || !Number.isInteger(item.category_id) || item.category_id < 1 || typeof item.category_name !== "string"))) throw new Error("Invalid category response.");
@@ -90,9 +114,18 @@ export default function CatalogManager({ kind }: { kind: Kind }) {
 
   function apply(next: Query) { activeRequest.current?.abort(); setLoading(true); setQuery(next); }
   function refreshRecords() { activeRequest.current?.abort(); setLoading(true); setRevision(value => value + 1); }
-  function refreshVisible() { apply({ search: search.trim(), category: filter, page: search.trim() === query.search && filter === query.category ? query.page : 1 }); }
-  function clear() { setSearch(""); setFilter(""); apply({ search: "", category: "", page: 1 }); }
-  function resetEditor() { setEditing(null); setDraft({}); }
+  function refreshVisible() { apply({ search: search.trim(), category: filter, minCapacity, maxCapacity, page: search.trim() === query.search && filter === query.category && minCapacity === (query.minCapacity ?? "") && maxCapacity === (query.maxCapacity ?? "") ? query.page : 1 }); }
+  function clear() { setSearch(""); setFilter(""); setMinCapacity(""); setMaxCapacity(""); apply({ search: "", category: "", minCapacity: "", maxCapacity: "", page: 1 }); }
+  function resetEditor() { setEditing(null); setDraft({}); setWarehouseTypeChoice(""); }
+  function applyFilters(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!product && ((minCapacity !== "" && (!/^\d+$/.test(minCapacity) || Number(minCapacity) > 2147483647)) || (maxCapacity !== "" && (!/^\d+$/.test(maxCapacity) || Number(maxCapacity) > 2147483647)) || (minCapacity !== "" && maxCapacity !== "" && Number(minCapacity) > Number(maxCapacity)))) {
+      setNotice({ error: true, text: "Enter valid capacity limits; minimum must not exceed maximum." });
+      return;
+    }
+    setNotice(null);
+    apply({ search: search.trim(), category: filter, minCapacity, maxCapacity, page: 1 });
+  }
   async function edit(id: number) {
     if (inFlight.current || uncertain) return;
     inFlight.current = true; setBusy(true); setNotice(null);
@@ -100,6 +133,7 @@ export default function CatalogManager({ kind }: { kind: Kind }) {
       const body = await request("/api/" + kind + "/" + id);
       const row = parseRow(body[singular], product);
       setEditing(id); setDraft(Object.fromEntries(fields.map(field => [field.key, String(row[field.key] ?? "")])));
+      if (!product) { const savedType = String(row.type ?? ""); setWarehouseTypeChoice(savedType && !warehouseTypes.includes(savedType) ? "Other" : savedType); }
       editor.current?.scrollIntoView({ behavior: "smooth", block: "start" }); editor.current?.focus();
     } catch (error) { setNotice({ error: true, text: errorText(error) }); }
     finally { inFlight.current = false; setBusy(false); }
@@ -151,6 +185,7 @@ export default function CatalogManager({ kind }: { kind: Kind }) {
           {fields.map(field => <div key={field.key} className={"ol-catalog-field" + (field.multiline ? " ol-catalog-wide" : "")}>
             <label htmlFor={kind + "-" + field.key}>{field.label}{field.required ? " *" : ""}</label>
             {field.key === "category_id" ? <select id={kind + "-" + field.key} required disabled={editorDisabled} value={draft.category_id ?? ""} onChange={event => setDraft(value => ({ ...value, category_id: event.target.value }))}><option value="">Select category</option>{draft.category_id && !categories.some(c => String(c.category_id) === draft.category_id) && <option value={draft.category_id} disabled>Category unavailable — select another</option>}{categories.map(category => <option key={category.category_id} value={category.category_id}>{category.category_name}</option>)}</select>
+              : field.key === "type" && !product ? <><select id={kind + "-" + field.key} disabled={editorDisabled} value={warehouseTypeChoice} onChange={event => { const choice = event.target.value; setWarehouseTypeChoice(choice); setDraft(value => ({ ...value, type: choice === "Other" ? "" : choice })); }}><option value="">No type</option>{warehouseTypes.map(type => <option key={type} value={type}>{type}</option>)}<option value="Other">Other</option></select>{warehouseTypeChoice === "Other" && <><label htmlFor="warehouse-custom-type">Custom type</label><input id="warehouse-custom-type" maxLength={50} disabled={editorDisabled} value={draft.type ?? ""} onChange={event => setDraft(value => ({ ...value, type: event.target.value }))} placeholder="Enter warehouse type" /></>}</>
               : field.multiline ? <textarea id={kind + "-" + field.key} rows={3} disabled={editorDisabled} value={draft[field.key] ?? ""} onChange={event => setDraft(value => ({ ...value, [field.key]: event.target.value }))} />
               : <input id={kind + "-" + field.key} type="text" inputMode={field.numeric ? (product ? "decimal" : "numeric") : undefined} required={field.required} maxLength={field.max} disabled={editorDisabled} value={draft[field.key] ?? ""} onChange={event => setDraft(value => ({ ...value, [field.key]: event.target.value }))} />}
           </div>)}
@@ -160,15 +195,16 @@ export default function CatalogManager({ kind }: { kind: Kind }) {
       </Panel>
     </div>
     <Panel title={title + " register"} subtitle={product ? "Search product ID, name, SKU or description." : "Search warehouse ID, name, location or type."}>
-      <form className={"ol-catalog-filters" + (product ? " ol-catalog-product-filters" : "")} role="search" onSubmit={event => { event.preventDefault(); apply({ search: search.trim(), category: filter, page: 1 }); }}>
-        <div className="ol-catalog-field"><label htmlFor={kind + "-search"}>Search {kind}</label><input id={kind + "-search"} type="search" value={search} onChange={event => { const value = event.target.value; setSearch(value); if (!value.trim()) apply({ search: "", category: filter, page: 1 }); }} /></div>
+      <form className={"ol-catalog-filters" + (product ? " ol-catalog-product-filters" : " ol-catalog-warehouse-filters")} role="search" onSubmit={applyFilters}>
+        <div className="ol-catalog-field"><label htmlFor={kind + "-search"}>Search {kind}</label><input id={kind + "-search"} type="search" value={search} placeholder={product ? "Search by ID, name, SKU, or description..." : "Search by name, ID, location, or type..."} onChange={event => { const value = event.target.value; setSearch(value); if (!value.trim()) apply({ search: "", category: filter, minCapacity, maxCapacity, page: 1 }); }} /></div>
         {product && <div className="ol-catalog-field"><label htmlFor="product-category-filter">Category</label><select id="product-category-filter" value={filter} onChange={event => { setFilter(event.target.value); apply({ search: search.trim(), category: event.target.value, page: 1 }); }}><option value="">All categories</option>{filter && !categories.some(c => String(c.category_id) === filter) && <option value={filter}>Category unavailable</option>}{categories.map(category => <option key={category.category_id} value={category.category_id}>{category.category_name}</option>)}</select></div>}
+        {!product && <><div className="ol-catalog-field"><label htmlFor="warehouse-min-capacity">Minimum capacity</label><input id="warehouse-min-capacity" type="number" min="0" step="1" value={minCapacity} onChange={event => setMinCapacity(event.target.value)} placeholder="Any" /></div><div className="ol-catalog-field"><label htmlFor="warehouse-max-capacity">Maximum capacity</label><input id="warehouse-max-capacity" type="number" min="0" step="1" value={maxCapacity} onChange={event => setMaxCapacity(event.target.value)} placeholder="Any" /></div></>}
         <button className="button" type="submit">Search</button><button className="button" type="button" onClick={clear}>Clear</button>
       </form>
       {loading ? <p className="ol-catalog-body" role="status">Loading {kind}…</p> : loadError ? <div className="ol-catalog-body"><p role="alert">{loadError}</p><button className="button" onClick={refreshVisible}>Retry</button></div> : rows.length ? <DataTable caption={title + " records"} headers={product ? ["ID", "Name", "SKU", "Category", "Price", "Actions"] : ["ID", "Name", "Location", "Type", "Capacity", "Actions"]}>
-        {rows.map(row => <tr key={String(row[idKey])}><td>#{row[idKey]}</td>{(product ? ["product_name", "sku", "category_name", "price"] : ["name", "location", "type", "capacity"]).map(key => <td className="ol-catalog-cell" key={key}>{row[key] ?? "—"}</td>)}<td><div className="ol-catalog-actions"><button className="button" disabled={busy || uncertain} aria-label={"Edit " + row[product ? "product_name" : "name"]} onClick={() => void edit(Number(row[idKey]))}>Edit</button><button className="button ol-catalog-delete" disabled={busy || uncertain} aria-label={"Delete " + row[product ? "product_name" : "name"]} onClick={() => void remove(row)}>Delete</button></div></td></tr>)}
-      </DataTable> : <EmptyState message={query.search || query.category ? "No matching records. Adjust or clear the filters." : "No records yet. Add one using the form above."} />}
-      {!loading && !loadError && <nav className="ol-catalog-pagination" aria-label={title + " pagination"}><span>{total} records · Page {query.page} of {pages}</span><div className="ol-catalog-actions"><button className="button" disabled={busy || query.page <= 1} onClick={() => apply({ ...query, page: query.page - 1 })}>Previous</button><button className="button" disabled={busy || query.page >= pages} onClick={() => apply({ ...query, page: query.page + 1 })}>Next</button></div></nav>}
+        {rows.map(row => <tr key={String(row[idKey])}><td>#{row[idKey]}</td>{(product ? ["product_name", "sku", "category_name", "price"] : ["name", "location", "type", "capacity"]).map(key => <td className={`ol-catalog-cell${key === "price" || key === "capacity" ? " numeric" : ""}`} key={key}>{row[key] ?? "—"}</td>)}<td><div className="ol-catalog-actions"><button className="button" disabled={busy || uncertain} aria-label={"Edit " + row[product ? "product_name" : "name"]} onClick={() => void edit(Number(row[idKey]))}>Edit</button><button className="button ol-catalog-delete" disabled={busy || uncertain} aria-label={"Delete " + row[product ? "product_name" : "name"]} onClick={() => void remove(row)}>Delete</button></div></td></tr>)}
+      </DataTable> : <EmptyState message={query.search || query.category || query.minCapacity || query.maxCapacity ? "No matching records. Adjust or clear the filters." : "No records yet. Add one using the form above."} />}
+      {!loading && !loadError && <nav className="ol-catalog-pagination" aria-label={title + " pagination"}><span>{total} records · Page {query.page} of {pages}</span>{pages > 1 && <div className="ol-catalog-actions"><button className="button" disabled={busy || query.page <= 1} onClick={() => apply({ ...query, page: query.page - 1 })}>Previous</button><button className="button" disabled={busy || query.page >= pages} onClick={() => apply({ ...query, page: query.page + 1 })}>Next</button></div>}</nav>}
       <p className="ol-catalog-footnote">{product ? "Products referenced by inventory or order items cannot be deleted. Price changes do not rewrite existing orders." : "Warehouses referenced by inventory cannot be deleted. Capacity is informational; editing it does not move or adjust stock."}</p>
     </Panel>
   </div>;
