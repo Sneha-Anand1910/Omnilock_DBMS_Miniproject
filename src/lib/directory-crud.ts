@@ -46,14 +46,14 @@ export async function listRecords(request: Request, kind: Kind) {
     // strpos treats search text literally; no wildcard or SQL interpolation.
     const rows = kind === "customers" ? await sql`
       WITH filtered AS (
-        SELECT customer_id, name, email, phone, address FROM public.customer
+        SELECT customer_id, name, email, phone, address, to_jsonb(customer)->>'created_at' AS created_at FROM public.customer
         WHERE ${search} = '' OR strpos(lower(concat_ws(' ', customer_id::text, name, email, phone, address)), lower(${search})) > 0
       ), paged AS (SELECT * FROM filtered ORDER BY customer_id DESC LIMIT ${pageSize} OFFSET ${offset})
       SELECT (SELECT count(*)::integer FROM filtered) AS total,
         COALESCE((SELECT json_agg(paged ORDER BY customer_id DESC) FROM paged), '[]'::json) AS records
     ` : await sql`
       WITH filtered AS (
-        SELECT category_id, category_name, description FROM public.category
+        SELECT category_id, category_name, description, to_jsonb(category)->>'created_at' AS created_at FROM public.category
         WHERE ${search} = '' OR strpos(lower(concat_ws(' ', category_id::text, category_name, description)), lower(${search})) > 0
       ), paged AS (SELECT * FROM filtered ORDER BY category_id DESC LIMIT ${pageSize} OFFSET ${offset})
       SELECT (SELECT count(*)::integer FROM filtered) AS total,
@@ -67,8 +67,8 @@ export async function getRecord(id: string, kind: Kind) {
     const recordId = idValue(id);
     const { sql } = await import("@/lib/neon-http");
     const rows = kind === "customers"
-      ? await sql`SELECT customer_id, name, email, phone, address FROM public.customer WHERE customer_id = ${recordId}`
-      : await sql`SELECT category_id, category_name, description FROM public.category WHERE category_id = ${recordId}`;
+      ? await sql`SELECT customer_id, name, email, phone, address, to_jsonb(customer)->>'created_at' AS created_at FROM public.customer WHERE customer_id = ${recordId}`
+      : await sql`SELECT category_id, category_name, description, to_jsonb(category)->>'created_at' AS created_at FROM public.category WHERE category_id = ${recordId}`;
     if (!rows.length) return response({ error: "Record not found." }, 404);
     return response({ success: true, [kind === "customers" ? "customer" : "category"]: rows[0] });
   } catch (error) { return handleError(error, kind); }

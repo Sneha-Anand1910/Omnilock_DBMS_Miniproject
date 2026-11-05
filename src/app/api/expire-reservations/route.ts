@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { sql } from "@/lib/neon-http";
+import { expireHolds } from "@/lib/expire-holds";
 
 export const runtime = "nodejs";
 
@@ -29,18 +29,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await sql`
-      SELECT expire_reservations() AS expired_count
-    `;
+    const expiredCount = await expireHolds();
 
     return NextResponse.json({
       success: true,
       message: "Expired reservations processed successfully",
-      expiredCount: result[0].expired_count,
+      expiredCount,
     });
 
-  } catch (error) {
-    console.error("Reservation expiry error:", error);
+  } catch {
+    console.error("Reservation expiry request failed.");
 
     return NextResponse.json(
       {

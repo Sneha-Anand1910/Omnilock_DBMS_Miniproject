@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { ManagedOrder } from "@/lib/orders";
+import { displayDateTime, displayTime } from "@/lib/display-time";
 import { DataTable, EmptyState, Panel, StatusBadge } from "@/components/omnilock/ui";
 import { Icon } from "@/components/omnilock/icons";
 import { playHoverSound, playInspectSound, playAlertSound, playSuccessSound } from "@/lib/sound";
@@ -186,7 +187,7 @@ export default function OrdersView({ orders }: { orders: ManagedOrder[] | null }
             ) : (
               <DataTable
                 caption="Orders and cancellation actions"
-                headers={["Order ID", "Customer", "Channel", "Date", "Total amount", "Status", "Actions"]}
+                headers={["Order ID", "Customer", "Channel", "Created date", "Total amount", "Status", "Actions"]}
               >
                 {filtered.map((order) => (
                   <tr key={order.order_id}>
@@ -197,7 +198,7 @@ export default function OrdersView({ orders }: { orders: ManagedOrder[] | null }
                     <td>
                       <span className="channel">{order.channel?.toLowerCase() ?? "—"}</span>
                     </td>
-                    <td>{order.date ?? "—"}</td>
+                    <td>{displayTime(order.date).date}</td>
                     <td className="numeric">{amount(order.total_amount)}</td>
                     <td>
                       <StatusBadge status={effectiveStatus(order)} />
@@ -238,7 +239,7 @@ export default function OrdersView({ orders }: { orders: ManagedOrder[] | null }
             >
               <Panel
                 title={`Order #${selected.order_id}`}
-                subtitle={`${selected.customer} · ${selected.date ?? "Date unavailable"}`}
+                subtitle={`${selected.customer} · ${displayDateTime(selected.date)}`}
                 action={
                   <button
                     className="button"

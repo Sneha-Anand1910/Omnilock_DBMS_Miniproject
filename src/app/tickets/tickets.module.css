@@ -66,6 +66,7 @@
   font-family: var(--font-geist-mono), monospace;
   font-variant-numeric: tabular-nums;
 }
+.summaryPending { font-size: 16px; font-weight: 600; }
 
 .summaryResolved .summaryValue {
   color: var(--teal);

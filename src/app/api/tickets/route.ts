@@ -24,10 +24,17 @@ export async function POST(request: NextRequest) {
     return failure("Description must contain 5–1000 characters after trimming whitespace", 400);
   }
 
+  let orders;
   try {
     const { sql } = await import("@/lib/neon-http");
-    const orders = await sql`SELECT order_id FROM orders WHERE order_id = ${orderId} LIMIT 1`;
-    if (!orders.length) return failure("Order not found", 404);
+    orders = await sql`SELECT order_id FROM orders WHERE order_id = ${orderId} LIMIT 1`;
+  } catch {
+    console.error("OmniLock tickets: PostgreSQL order validation unavailable.");
+    return failure("Order validation unavailable. Check PostgreSQL connectivity and retry.", 503);
+  }
+  if (!orders.length) return failure("Order not found", 404);
+
+  try {
     const tickets = await ticketCollection();
     const now = new Date();
     const ticket: TicketDocument = {
@@ -44,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
     if (error instanceof MongoServerError && error.code === 11000) return failure("A ticket with these unique details already exists", 409);
     console.error("OmniLock tickets: creation unavailable.");
-    return failure("Unable to create ticket", 500);
+    return failure("Ticket service unavailable. Check MongoDB connectivity and retry.", 503);
   }
 }
 
@@ -95,6 +102,6 @@ export async function GET(request: NextRequest) {
     return json({ success: true, tickets: (result?.tickets ?? []).map(serializeTicket), total: result?.total[0]?.count ?? 0, page, pageSize });
   } catch {
     console.error("OmniLock tickets: listing unavailable.");
-    return failure("Unable to load tickets", 500);
+    return failure("Ticket service unavailable. Check MongoDB connectivity and retry.", 503);
   }
 }

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, useTransition, type FormEvent } from "react";
 import dynamic from "next/dynamic";
-import type { InventoryRecord, WarehouseOption } from "@/lib/inventory";
+import { useRouter } from "next/navigation";
+import type { InventoryRecord, ProductOption, WarehouseOption } from "@/lib/inventory";
 import { DataTable, EmptyState, Panel, StatusBadge } from "@/components/omnilock/ui";
 import { Icon } from "@/components/omnilock/icons";
 import { playHoverSound, playInspectSound } from "@/lib/sound";
@@ -36,15 +37,67 @@ const WarehouseDigitalTwin = dynamic(
 export default function InventoryTable({
   records,
   warehouses,
+  products,
   threshold,
 }: {
   records: InventoryRecord[];
   warehouses: WarehouseOption[];
+  products: ProductOption[];
   threshold: number;
 }) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [warehouse, setWarehouse] = useState("");
   const [viewMode, setViewMode] = useState<"twin" | "table" | "split">("split");
+  const [restockProduct, setRestockProduct] = useState("");
+  const [restockWarehouse, setRestockWarehouse] = useState("");
+  const [restockQuantity, setRestockQuantity] = useState("");
+  const [restockSending, setRestockSending] = useState(false);
+  const [restockRefreshing, startRestockRefresh] = useTransition();
+  const [restockUncertain, setRestockUncertain] = useState(false);
+  const [restockNotice, setRestockNotice] = useState<{ error: boolean; text: string } | null>(null);
+  const restockInFlight = useRef(false);
+
+  const quantity = Number(restockQuantity);
+  const restockReady =
+    products.some((item) => String(item.product_id) === restockProduct) &&
+    warehouses.some((item) => String(item.warehouse_id) === restockWarehouse) &&
+    Number.isSafeInteger(quantity) && quantity > 0 && quantity <= 2147483647;
+
+  async function submitRestock(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!restockReady || restockInFlight.current || restockSending || restockRefreshing || restockUncertain) return;
+    restockInFlight.current = true;
+    setRestockSending(true);
+    setRestockNotice(null);
+    try {
+      const response = await fetch("/api/inventory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: Number(restockProduct), warehouseId: Number(restockWarehouse), quantity }),
+      });
+      const result = await response.json().catch(() => null);
+      if (response.ok && result?.success === true && Number.isSafeInteger(result.record?.stock_quantity)) {
+        setRestockNotice({
+          error: false,
+          text: `Added ${quantity.toLocaleString("en-IN")} units. On hand now: ${Number(result.record.stock_quantity).toLocaleString("en-IN")}; reserved: ${Number(result.record.reserved_quantity).toLocaleString("en-IN")}; available: ${Number(result.record.available).toLocaleString("en-IN")}.`,
+        });
+        setRestockQuantity("");
+        startRestockRefresh(() => router.refresh());
+      } else if ([400, 404, 409].includes(response.status) && typeof result?.message === "string") {
+        setRestockNotice({ error: true, text: result.message });
+      } else {
+        setRestockUncertain(true);
+        setRestockNotice({ error: true, text: "The restock result could not be confirmed. Reload and inspect inventory before submitting again to avoid adding stock twice." });
+      }
+    } catch {
+      setRestockUncertain(true);
+      setRestockNotice({ error: true, text: "The connection was interrupted. Reload and inspect inventory before submitting again to avoid adding stock twice." });
+    } finally {
+      restockInFlight.current = false;
+      setRestockSending(false);
+    }
+  }
 
   const query = search.trim().toLowerCase();
   const filtered = records.filter(
@@ -114,6 +167,33 @@ export default function InventoryTable({
           </div>
         </div>
       </div>
+
+      <Panel title="Add Inventory / Restock" subtitle="Create stock for a product and warehouse, or add units to existing stock.">
+        {restockNotice && <p className={`${styles.restockNotice} ${restockNotice.error ? styles.restockError : styles.restockSuccess}`} role={restockNotice.error ? "alert" : "status"}>{restockNotice.text}</p>}
+        <form className={styles.restockForm} onSubmit={submitRestock}>
+          <label className={styles.restockField}>Product
+            <select required value={restockProduct} onChange={(event) => setRestockProduct(event.target.value)} disabled={restockSending || restockRefreshing || restockUncertain}>
+              <option value="">Select product</option>
+              {products.map((item) => <option key={item.product_id} value={item.product_id}>{item.product_name} ({item.sku})</option>)}
+            </select>
+          </label>
+          <label className={styles.restockField}>Warehouse
+            <select required value={restockWarehouse} onChange={(event) => setRestockWarehouse(event.target.value)} disabled={restockSending || restockRefreshing || restockUncertain}>
+              <option value="">Select warehouse</option>
+              {warehouses.map((item) => <option key={item.warehouse_id} value={item.warehouse_id}>{item.name}</option>)}
+            </select>
+          </label>
+          <label className={styles.restockField}>Quantity to add
+            <input type="number" min="1" max="2147483647" step="1" required placeholder="Enter units" value={restockQuantity} onChange={(event) => setRestockQuantity(event.target.value)} disabled={restockSending || restockRefreshing || restockUncertain} />
+          </label>
+          <div className={styles.restockActions}>
+            <button className="button primary" type="submit" disabled={!restockReady || restockSending || restockRefreshing || restockUncertain}>{restockSending ? "Adding stock…" : restockRefreshing ? "Refreshing stock…" : "Add inventory / Restock"}</button>
+            <span>On-hand stock increases; existing reservations stay unchanged.</span>
+          </div>
+        </form>
+        {(!products.length || !warehouses.length) && <p className={styles.restockHint}>Create a product and warehouse before adding inventory.</p>}
+        {restockUncertain && <div className={styles.restockRecovery}><button className="button" type="button" onClick={() => window.location.reload()}>Reload and review inventory</button></div>}
+      </Panel>
 
       <div className={`${styles.viewContent} ${viewMode === "split" ? styles.splitView : ""}`}>
       {/* 3D Digital Twin Section */}

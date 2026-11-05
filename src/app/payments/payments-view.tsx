@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { PaymentsData } from "@/lib/payments";
+import { displayTime } from "@/lib/display-time";
 import { DataTable, EmptyState, Panel, StatusBadge } from "@/components/omnilock/ui";
 import { playHoverSound, playSuccessSound, playAlertSound } from "@/lib/sound";
 import styles from "./payments.module.css";
@@ -219,7 +220,7 @@ export default function PaymentsView({ data }: { data: PaymentsData | null }) {
             ) : (
               <DataTable
                 caption="Payment history"
-                headers={["Payment", "Order", "Customer", "Amount", "Method", "Transaction reference", "Status", "Date"]}
+                headers={["Payment", "Order", "Customer", "Amount", "Method", "Transaction reference", "Status", "Payment date", "Payment time"]}
               >
                 {filtered.map((payment) => (
                   <tr key={payment.payment_id}>
@@ -241,8 +242,9 @@ export default function PaymentsView({ data }: { data: PaymentsData | null }) {
                       <StatusBadge status={payment.status} />
                     </td>
                     <td>
-                      <span className={styles.dateText}>{payment.date ?? "—"}</span>
+                      <span className={styles.dateText}>{displayTime(payment.date).date}</span>
                     </td>
+                    <td><span className={styles.dateText}>{displayTime(payment.date).time}</span></td>
                   </tr>
                 ))}
               </DataTable>

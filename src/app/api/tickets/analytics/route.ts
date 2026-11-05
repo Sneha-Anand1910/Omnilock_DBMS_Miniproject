@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
-import { mongoClientPromise } from "@/lib/mongodb";
+import { ticketCollection } from "../ticket-store";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const client = await mongoClientPromise;
-    const tickets = client.db("omnilock_support").collection("tickets");
+    const tickets = await ticketCollection();
 
     const results = await tickets
       .aggregate([
@@ -75,11 +74,11 @@ export async function GET() {
       mostCommonIssue: data.byIssueType[0]?._id ?? null,
     });
   } catch (error) {
-    console.error("Ticket analytics error:", error);
+    console.error("OmniLock tickets: analytics unavailable.", error instanceof Error ? error.name : "unknown error");
 
     return NextResponse.json(
-      { success: false, error: "Unable to load ticket analytics" },
-      { status: 500 }
+      { success: false, error: "Ticket analytics unavailable. Check MongoDB connectivity and retry." },
+      { status: 503 }
     );
   }
 }

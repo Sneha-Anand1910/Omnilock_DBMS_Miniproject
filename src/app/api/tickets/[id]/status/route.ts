@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
-import { mongoClientPromise } from "@/lib/mongodb";
+import { getMongoClient } from "@/lib/mongodb";
 
 type TicketStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED";
 
@@ -77,7 +77,7 @@ export async function PATCH(
       );
     }
 
-    const client = await mongoClientPromise;
+    const client = await getMongoClient();
     const tickets = client.db("omnilock_support").collection("tickets");
 
     // Atomic conditional update
@@ -123,11 +123,11 @@ export async function PATCH(
       newStatus,
     });
   } catch (error) {
-    console.error("Ticket status update error:", error);
+    console.error("OmniLock tickets: status update unavailable.", error instanceof Error ? error.name : "unknown error");
 
     return NextResponse.json(
-      { error: "Unable to update ticket status" },
-      { status: 500 }
+      { error: "Ticket service unavailable. Check MongoDB connectivity and retry." },
+      { status: 503 }
     );
   }
 }

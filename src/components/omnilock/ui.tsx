@@ -27,7 +27,7 @@ export function StatusBadge({ status }: { status: string | null }) {
         "OUT_FOR_DELIVERY",
       ].includes(value)
     ? "amber"
-    : ["CANCELLED", "EXPIRED", "OUT OF STOCK", "RETURNED", "REFUNDED"].includes(
+    : ["CANCELLED", "EXPIRED", "OUT OF STOCK", "RETURNED", "REFUNDED", "DISABLED"].includes(
         value
       )
     ? "red"

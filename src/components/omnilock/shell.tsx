@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Icon } from "./icons";
 import { navigation } from "./navigation";
+import { displayTime } from "@/lib/display-time";
 import {
   initSoundState,
   setSoundEnabled,
@@ -111,6 +112,7 @@ function ProfileMenu() {
         {user && <span>{user.role === "ADMIN" ? "Administrator" : "Staff"}</span>}
         {user?.phone && <span>{user.phone}</span>}
         {error && <p role="alert">{error}</p>}
+        {user?.role === "ADMIN" && <Link className="profile-admin-link" href="/admin/users" onClick={() => setOpen(false)}>User management</Link>}
         <button type="button" onClick={logout}>Log out</button>
       </div>}
     </div>
@@ -130,6 +132,16 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const [navSearch, setNavSearch] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/auth/me", { cache: "no-store", signal: controller.signal })
+      .then((response) => response.ok ? response.json() : null)
+      .then((result) => { if (!controller.signal.aborted) setIsAdmin(result?.user?.role === "ADMIN"); })
+      .catch(() => { if (!controller.signal.aborted) setIsAdmin(false); });
+    return () => controller.abort();
+  }, [pathname]);
 
   const isActive = (slug: string) => {
     const href = slug ? `/${slug}` : "/";
@@ -137,6 +149,7 @@ export function Sidebar({
   };
 
   const filteredNav = navigation.filter((item) => {
+    if ("adminOnly" in item && item.adminOnly && !isAdmin) return false;
     if (!navSearch.trim()) return true;
     const q = navSearch.toLowerCase().trim();
     return (
@@ -261,6 +274,16 @@ export function Sidebar({
 
 export function Header({ open, expanded }: { open: () => void; expanded: boolean }) {
   const pathname = usePathname();
+  const [clock, setClock] = useState<string>("");
+  useEffect(() => {
+    const tick = () => {
+      const current = displayTime(new Date());
+      setClock(`${current.date} | ${current.time}`);
+    };
+    tick();
+    const timer = window.setInterval(tick, 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const current = navigation
     .filter(
       (item) => item.slug && (pathname === `/${item.slug}` || pathname.startsWith(`/${item.slug}/`))
@@ -324,6 +347,7 @@ export function Header({ open, expanded }: { open: () => void; expanded: boolean
       </div>
 
       <div className="header-right">
+        <time className="workspace-clock" aria-label="Current date and time in India">{clock || "India time"}</time>
         <SoundToggle />
         <span className="environment">
           <span className="environment-mark">

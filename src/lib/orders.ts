@@ -8,7 +8,7 @@ export async function getOrders(): Promise<ManagedOrder[] | null> {
     const { sql } = await import("@/lib/neon-http");
     const rows = await sql`
       SELECT o.order_id, COALESCE(c.name, 'Customer unavailable') AS customer,
-        o.channel, to_char(o.order_date, 'DD Mon YYYY, HH24:MI') AS date,
+        o.channel, o.order_date AT TIME ZONE 'UTC' AS date,
         o.total_amount::text, o.status,
         COALESCE((SELECT json_agg(json_build_object(
           'order_item_id', oi.order_item_id,
