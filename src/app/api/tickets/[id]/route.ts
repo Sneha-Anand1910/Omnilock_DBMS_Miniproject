@@ -14,6 +14,6 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
     return json({ success: true, ticket: serializeTicket(ticket) });
   } catch {
     console.error("OmniLock tickets: detail unavailable.");
-    return failure("Unable to load ticket", 500);
+    return failure("Ticket service unavailable. Check MongoDB connectivity and retry.", 503);
   }
 }

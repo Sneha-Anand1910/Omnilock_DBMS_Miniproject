@@ -7,8 +7,8 @@ import styles from "./tickets.module.css";
 
 export const issueTypes = ["DELIVERY", "PAYMENT", "REFUND", "PRODUCT", "OTHER"] as const;
 
-export function SummaryCard({ title, value, resolved = false }: { title: string; value?: number; resolved?: boolean }) {
-  return <article className={`${styles.summaryCard} ${resolved ? styles.summaryResolved : ""}`}><h2 className={styles.summaryLabel}>{title}</h2><p className={styles.summaryValue}>{value === undefined ? "—" : value.toLocaleString("en-IN")}</p></article>;
+export function SummaryCard({ title, value, resolved = false, unavailable = false }: { title: string; value?: number; resolved?: boolean; unavailable?: boolean }) {
+  return <article className={`${styles.summaryCard} ${resolved ? styles.summaryResolved : ""}`}><h2 className={styles.summaryLabel}>{title}</h2><p className={`${styles.summaryValue} ${value === undefined ? styles.summaryPending : ""}`}>{value === undefined ? unavailable ? "Unavailable" : "Loading…" : value.toLocaleString("en-IN")}</p></article>;
 }
 
 export function Badge({ status }: { status: TicketStatus }) {

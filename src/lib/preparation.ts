@@ -48,7 +48,7 @@ const eligibleItems = `eligible_items AS (
 )`;
 const base = (kind: Kind) => kind === "fulfillment" ? `
  SELECT f.fulfillment_id AS id,f.order_item_id,oi.order_id,oi.quantity,p.product_name,c.name AS customer,
- f.status,f.fulfillment_date,
+ f.status,f.fulfillment_date AT TIME ZONE 'UTC' AS fulfillment_date,
  (f.status='PACKED' AND EXISTS (SELECT 1 FROM eligible_items e WHERE e.order_item_id=f.order_item_id)
   AND EXISTS (SELECT 1 FROM public.shipment s WHERE s.fulfillment_id=f.fulfillment_id AND s.status='PENDING'
     AND s.ship_date IS NULL AND s.delivery_date IS NULL)) AS dispatch_eligible
@@ -56,7 +56,10 @@ const base = (kind: Kind) => kind === "fulfillment" ? `
  JOIN public.orders o USING(order_id) JOIN public.product p ON p.product_id=oi.product_id JOIN public.customer c ON c.customer_id=o.customer_id
 ` : `
  SELECT s.shipment_id AS id,s.fulfillment_id,f.order_item_id,oi.order_id,oi.quantity,p.product_name,c.name AS customer,
- s.status,s.courier,s.tracking_no,s.ship_date,s.delivery_date,f.status AS fulfillment_status
+ s.status,s.courier,s.tracking_no,
+ to_jsonb(s)->>'created_at' AS created_at,
+ s.ship_date AT TIME ZONE 'UTC' AS ship_date,
+ s.delivery_date AT TIME ZONE 'UTC' AS delivery_date,f.status AS fulfillment_status
  FROM public.shipment s JOIN public.fulfillment f USING(fulfillment_id) JOIN public.order_item oi USING(order_item_id)
  JOIN public.orders o USING(order_id) JOIN public.product p ON p.product_id=oi.product_id JOIN public.customer c ON c.customer_id=o.customer_id
 `;

@@ -1,3 +1,5 @@
+import { displayDateTime } from "@/lib/display-time";
+
 export const statuses = ["OPEN", "IN_PROGRESS", "RESOLVED"] as const;
 export type TicketStatus = typeof statuses[number];
 export type Ticket = {
@@ -8,7 +10,7 @@ export type Ticket = {
 export type TicketList = { tickets: Ticket[]; total: number; page: number; pageSize: number };
 export type Analytics = { totalTickets: number; statusCounts: Record<TicketStatus, number>; issueTypeCounts: { issueType: string; count: number }[] };
 export const label = (value: string) => value.replaceAll("_", " ").toLowerCase();
-export const date = (value: string) => new Date(value).toLocaleString("en-IN");
+export const date = (value: string) => displayDateTime(value);
 export const isStatus = (value: unknown): value is TicketStatus => statuses.some(status => status === value);
 function record(value: unknown): value is Record<string, unknown> { return !!value && typeof value === "object" && !Array.isArray(value); }
 function count(value: unknown): value is number { return typeof value === "number" && Number.isSafeInteger(value) && value >= 0; }
@@ -31,9 +33,17 @@ export class ApiError extends Error {
   constructor(message: string, public status: number) { super(message); }
 }
 export async function request(url: string, init?: RequestInit): Promise<Record<string, unknown>> {
-  const response = await fetch(url, { cache: "no-store", ...init });
+  const timeout = AbortSignal.timeout(15_000);
+  const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
+  let response: Response;
+  try {
+    response = await fetch(url, { cache: "no-store", ...init, signal });
+  } catch (error) {
+    if (timeout.aborted && !init?.signal?.aborted) throw new ApiError("Ticket service timed out. Check MongoDB connectivity and retry.", 503);
+    throw error;
+  }
   const body: unknown = await response.json().catch(() => null);
-  if (!response.ok) throw new ApiError(record(body) && typeof body.error === "string" ? body.error : response.status === 404 || response.status === 405 ? "Ticket API unavailable. The list, create and detail endpoints must be supplied by Tarun." : `Request failed (${response.status}). Please try again.`, response.status);
+  if (!response.ok) throw new ApiError(record(body) && typeof body.error === "string" ? body.error : record(body) && typeof body.message === "string" ? body.message : response.status === 503 ? "Ticket service unavailable. Check MongoDB connectivity and retry." : `Request failed (${response.status}). Please try again.`, response.status);
   if (!record(body) || body.success === false) throw new ApiError("Unexpected API response. Check the documented ticket API contract.", response.status);
   return body;
 }

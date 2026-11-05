@@ -50,6 +50,7 @@ export async function getAccountForSession(token: string | undefined): Promise<A
     FROM public.omnilock_session s
     JOIN public.omnilock_account a ON a.account_id = s.account_id
     WHERE s.token_hash = ${tokenHash(token)} AND s.expires_at > now()
+      AND COALESCE((to_jsonb(a)->>'is_active')::boolean, true)
     LIMIT 1
   `;
   if (!rows.length) return null;

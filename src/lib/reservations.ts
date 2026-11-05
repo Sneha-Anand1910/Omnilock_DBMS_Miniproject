@@ -1,8 +1,9 @@
 import "server-only";
 
-export type ReservationRow = { reservation_id: number; order_id: number; customer: string; product: string; sku: string | null; warehouse: string; quantity: number; status: string | null; channel: string | null; expires: string | null; overdue: boolean };
+export type ReservationRow = { reservation_id: number; order_id: number; customer: string; product: string; sku: string | null; warehouse: string; quantity: number; status: string | null; channel: string | null; reserved_at: string | null; expires_at: string | null; overdue: boolean };
 export type ReservationData = {
   reservations: ReservationRow[];
+  holdMinutes: number | null;
   customers: { id: number; name: string }[];
   products: { id: number; name: string; sku: string | null }[];
   warehouses: { id: number; name: string }[];
@@ -18,7 +19,8 @@ export async function getReservations(): Promise<ReservationData | null> {
           COALESCE(p.product_name, 'Product unavailable') AS product, p.sku,
           COALESCE(w.name, 'Warehouse unavailable') AS warehouse,
           r.reserved_quantity AS quantity, r.reservation_status AS status, o.channel,
-          to_char(r.expires_at, 'DD Mon YYYY, HH24:MI:SS') AS expires,
+          r.reserved_at AT TIME ZONE 'UTC' AS reserved_at,
+          r.expires_at AT TIME ZONE 'UTC' AS expires_at,
           COALESCE(r.reservation_status = 'ACTIVE' AND r.expires_at <= CURRENT_TIMESTAMP, false) AS overdue
         FROM inventory_reservation r
         LEFT JOIN order_item oi ON oi.order_item_id = r.order_item_id
@@ -34,7 +36,13 @@ export async function getReservations(): Promise<ReservationData | null> {
         COALESCE((SELECT json_agg(p ORDER BY name, id) FROM (SELECT product_id AS id, product_name AS name, sku FROM product) p), '[]') AS products,
         COALESCE((SELECT json_agg(w ORDER BY name, id) FROM (SELECT warehouse_id AS id, name FROM warehouse) w), '[]') AS warehouses,
         COALESCE((SELECT json_agg(i) FROM (SELECT product_id, warehouse_id,
-          COALESCE(stock_quantity, 0) - COALESCE(reserved_quantity, 0) AS available FROM inventory) i), '[]') AS inventory
+          COALESCE(stock_quantity, 0) - COALESCE(reserved_quantity, 0) AS available FROM inventory) i), '[]') AS inventory,
+        CASE
+          WHEN position('INTERVAL ''20 minutes''' IN pg_get_functiondef(to_regprocedure('public.reserve_inventory(integer,integer,integer,integer,character varying)'))) > 0 THEN 20
+          WHEN position('INTERVAL ''15 minutes''' IN pg_get_functiondef(to_regprocedure('public.reserve_inventory(integer,integer,integer,integer,character varying)'))) > 0 THEN 15
+          WHEN position('INTERVAL ''35 minutes''' IN pg_get_functiondef(to_regprocedure('public.reserve_inventory(integer,integer,integer,integer,character varying)'))) > 0 THEN 35
+          ELSE NULL
+        END AS "holdMinutes"
     `;
     return rows[0] as ReservationData;
   } catch {

@@ -1,6 +1,6 @@
-// Run reservation expiry only in the local Node.js development server.
+// Run expiry while a persistent Node.js application process is alive.
 export async function register() {
-  if (process.env.NEXT_RUNTIME !== "nodejs" || process.env.NODE_ENV !== "development") {
+  if (process.env.NEXT_RUNTIME !== "nodejs") {
     return;
   }
 
@@ -9,19 +9,20 @@ export async function register() {
   };
   if (globalScheduler.__omnilockExpiryTimer) return;
 
-  const { sql } = await import("./lib/neon-http");
+  const { expireHolds } = await import("./lib/expire-holds");
   let running = false;
-
-  globalScheduler.__omnilockExpiryTimer = setInterval(async () => {
+  const run = async () => {
     if (running) return;
     running = true;
     try {
-      await sql`SELECT expire_reservations() AS expired_count`;
+      await expireHolds();
     } catch {
       // Do not log database errors that could contain connection details.
       console.error("Automatic reservation expiry failed.");
     } finally {
       running = false;
     }
-  }, 60_000);
+  };
+  globalScheduler.__omnilockExpiryTimer = setInterval(run, 60_000);
+  void run();
 }

@@ -16,8 +16,8 @@ export type TicketDocument = {
 };
 
 export async function ticketCollection() {
-  const { mongoClientPromise } = await import("@/lib/mongodb");
-  const client = await mongoClientPromise;
+  const { getMongoClient } = await import("@/lib/mongodb");
+  const client = await getMongoClient();
   return client.db("omnilock_support").collection<TicketDocument>("tickets");
 }
 

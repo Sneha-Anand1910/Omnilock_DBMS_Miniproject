@@ -11,4 +11,5 @@ export const navigation = [
   { slug: "tickets", label: "Support Tickets", icon: "orders", group: "SUPPORT" },
   { slug: "customers", label: "Customers", icon: "customers", group: "DIRECTORY" },
   { slug: "categories", label: "Categories", icon: "categories" },
+  { slug: "admin/users", label: "User Management", icon: "customers", group: "ADMINISTRATION", adminOnly: true },
 ];

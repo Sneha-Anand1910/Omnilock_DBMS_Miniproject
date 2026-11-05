@@ -11,7 +11,7 @@ export async function getPayments(): Promise<PaymentsData | null> {
       WITH history AS (
         SELECT p.payment_id, p.order_id, COALESCE(c.name, 'Customer unavailable') AS customer,
           p.amount::text, p.method, p.transaction_ref, p.status,
-          to_char(p.payment_date, 'DD Mon YYYY, HH24:MI:SS') AS date, p.payment_date AS sort_date
+          p.payment_date AT TIME ZONE 'UTC' AS date, p.payment_date AS sort_date
         FROM payment p LEFT JOIN orders o ON o.order_id = p.order_id
         LEFT JOIN customer c ON c.customer_id = o.customer_id
       ), eligible AS (

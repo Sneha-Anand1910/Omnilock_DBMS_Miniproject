@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
-import { mongoClientPromise } from "@/lib/mongodb";
+import { getMongoClient } from "@/lib/mongodb";
 
 export async function POST(
   request: NextRequest,
@@ -38,7 +38,7 @@ export async function POST(
       );
     }
 
-    const client = await mongoClientPromise;
+    const client = await getMongoClient();
     type TicketMessage = {
     sender: "CUSTOMER" | "SUPPORT";
     text: string;
@@ -85,10 +85,10 @@ export async function POST(
       message: "Message added successfully",
     });
   } catch (error) {
-    console.error("Ticket message error:", error);
+    console.error("OmniLock tickets: messaging unavailable.", error instanceof Error ? error.name : "unknown error");
     return NextResponse.json(
-      { error: "Unable to add message" },
-      { status: 500 }
+      { error: "Ticket service unavailable. Check MongoDB connectivity and retry." },
+      { status: 503 }
     );
   }
 }

@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { ReservationData } from "@/lib/reservations";
 import { DataTable, EmptyState, Panel, StatusBadge } from "@/components/omnilock/ui";
 import { playHoverSound, playSuccessSound, playAlertSound } from "@/lib/sound";
+import { displayTime } from "@/lib/display-time";
 import styles from "./reservations.module.css";
 
 export default function ReservationsView({ data }: { data: ReservationData | null }) {
@@ -21,7 +22,28 @@ export default function ReservationsView({ data }: { data: ReservationData | nul
   const [refreshing, startTransition] = useTransition();
   const [notice, setNotice] = useState<{ error: boolean; text: string } | null>(null);
   const [uncertain, setUncertain] = useState(false);
+  const [now, setNow] = useState<number | null>(null);
   const inFlight = useRef(false);
+
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!data?.reservations.some((row) => row.status === "ACTIVE")) return;
+    const timer = window.setInterval(() => router.refresh(), 60_000);
+    return () => window.clearInterval(timer);
+  }, [data, router]);
+
+  function remaining(expiresAt: string | null) {
+    if (!expiresAt || now === null) return "Calculating…";
+    const seconds = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - now) / 1000));
+    if (!Number.isFinite(seconds)) return "Unavailable";
+    return seconds ? `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s` : "Awaiting server expiry";
+  }
 
   const busy = sending || refreshing;
   const stock = data?.inventory.find(
@@ -83,7 +105,7 @@ export default function ReservationsView({ data }: { data: ReservationData | nul
       if (response.ok && result?.success === true && Number.isSafeInteger(result.orderId)) {
         setNotice({
           error: false,
-          text: `Reservation created for order #${result.orderId}. The database sets its expiry to 15 minutes after creation.`,
+          text: `Reservation created for order #${result.orderId}. See its stored creation and expiry times below after refresh.`,
         });
         playSuccessSound();
         setQuantity("");
@@ -163,7 +185,7 @@ export default function ReservationsView({ data }: { data: ReservationData | nul
         <div className={styles.sections}>
           <Panel
             title="Create reservation"
-            subtitle="A successful reservation creates a pending order and holds inventory for 15 minutes."
+            subtitle={`A successful reservation creates a pending order${data.holdMinutes ? ` with a ${data.holdMinutes}-minute hold` : ""}. The database stores its exact expiry time.`}
           >
             {(!data.customers.length || !data.products.length || !data.warehouses.length) && (
               <p className={styles.hint}>
@@ -228,7 +250,7 @@ export default function ReservationsView({ data }: { data: ReservationData | nul
                 </label>
                 <div className={styles.submitWrap}>
                   <button className="button primary" type="submit" disabled={!ready || busy || uncertain}>
-                    {sending ? "Holding…" : "Create 15-min hold"}
+                    {sending ? "Holding…" : data.holdMinutes ? `Create ${data.holdMinutes}-min hold` : "Create reservation"}
                   </button>
                 </div>
               </fieldset>
@@ -295,7 +317,11 @@ export default function ReservationsView({ data }: { data: ReservationData | nul
                   "Channel",
                   "Reserved units",
                   "Status",
-                  "Expiry / Event",
+                  "Reserved date",
+                  "Reserved time",
+                  "Expiry date",
+                  "Expiry time",
+                  "Time remaining",
                 ]}
               >
                 {filtered.map((row) => (
@@ -319,15 +345,17 @@ export default function ReservationsView({ data }: { data: ReservationData | nul
                     <td>
                       <StatusBadge status={row.status} />
                     </td>
-                    <td>
-                      <span className={styles.expiryText}>{row.expires ?? "—"}</span>
-                    </td>
+                    <td><span className={styles.expiryText}>{displayTime(row.reserved_at).date}</span></td>
+                    <td><span className={styles.expiryText}>{displayTime(row.reserved_at).time}</span></td>
+                    <td><span className={styles.expiryText}>{displayTime(row.expires_at).date}</span></td>
+                    <td><span className={styles.expiryText}>{displayTime(row.expires_at).time}</span></td>
+                    <td><span className={styles.expiryText}>{row.status === "ACTIVE" ? remaining(row.expires_at) : "—"}</span></td>
                   </tr>
                 ))}
               </DataTable>
             )}
             <div className="panel-footnote">
-              Active holds automatically expire after 15 minutes unless confirmed via payment or cancelled.
+              Only ACTIVE holds await expiry. The stored expiration time is authoritative; confirmed and consumed reservations have no active countdown.
             </div>
           </Panel>
         </div>

@@ -68,7 +68,7 @@ export async function POST(request: NextRequest, context: Context) {
   if (action === "register") {
     const name = typeof values.name === "string" ? values.name.trim() : "";
     const phone = typeof values.phone === "string" ? values.phone.trim() : "";
-    if ("role" in values) return failure("Account role cannot be selected during registration", 400);
+    if ("role" in values || "isActive" in values || "is_active" in values) return failure("Account role or status cannot be selected during registration", 400);
     const ruleError = passwordError(password);
     if (ruleError) return failure(ruleError, 400);
     if (values.confirmPassword !== password) return failure("Passwords do not match", 400);
@@ -93,8 +93,9 @@ export async function POST(request: NextRequest, context: Context) {
 
   try {
     const rows = await sql`
-      SELECT account_id, full_name, email, phone, role, password_hash, locked_until
-      FROM public.omnilock_account WHERE lower(email) = ${email} LIMIT 1
+      SELECT account_id, full_name, email, phone, role, password_hash, locked_until,
+        COALESCE((to_jsonb(a)->>'is_active')::boolean, true) AS is_active
+      FROM public.omnilock_account a WHERE lower(email) = ${email} LIMIT 1
     `;
     if (!rows.length) return failure("Invalid email or password", 401);
     const row = rows[0];
@@ -110,6 +111,7 @@ export async function POST(request: NextRequest, context: Context) {
       `;
       return failure("Invalid email or password", 401);
     }
+    if (!row.is_active) return failure("This account is disabled. Contact an administrator.", 403);
     await sql`UPDATE public.omnilock_account SET failed_logins = 0, locked_until = NULL WHERE account_id = ${row.account_id}`;
     const token = await createSession(Number(row.account_id));
     return setSession(NextResponse.json({ success: true, user: { id: Number(row.account_id), name: row.full_name, email: row.email, phone: row.phone, role: row.role } }), token);

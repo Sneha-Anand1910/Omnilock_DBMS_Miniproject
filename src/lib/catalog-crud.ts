@@ -47,7 +47,7 @@ export async function listCatalog(request: Request, kind: Kind) {
     const offset = (page - 1) * pageSize;
     const rows = kind === "products" ? await sql`
       WITH filtered AS (
-        SELECT p.product_id, p.product_name, p.sku, p.price::text AS price, p.description, p.category_id, c.category_name
+        SELECT p.product_id, p.product_name, p.sku, p.price::text AS price, p.description, p.category_id, c.category_name, to_jsonb(p)->>'created_at' AS created_at
         FROM public.product p JOIN public.category c ON c.category_id = p.category_id
         WHERE (${categoryId}::integer IS NULL OR p.category_id = ${categoryId})
           AND (${search} = '' OR strpos(lower(concat_ws(' ', p.product_id::text, p.product_name, p.sku, p.description)), lower(${search})) > 0)
@@ -57,7 +57,7 @@ export async function listCatalog(request: Request, kind: Kind) {
         COALESCE((SELECT json_agg(c ORDER BY category_name, category_id) FROM (SELECT category_id, category_name FROM public.category) c), '[]'::json) AS categories
     ` : await sql`
       WITH filtered AS (
-        SELECT warehouse_id, name, location, type, capacity FROM public.warehouse
+        SELECT warehouse_id, name, location, type, capacity, to_jsonb(warehouse)->>'created_at' AS created_at FROM public.warehouse
         WHERE ${search} = '' OR strpos(lower(concat_ws(' ', warehouse_id::text, name, location, type)), lower(${search})) > 0
       ), paged AS (SELECT * FROM filtered ORDER BY warehouse_id DESC LIMIT ${pageSize} OFFSET ${offset})
       SELECT (SELECT count(*)::integer FROM filtered) AS total,
@@ -70,7 +70,7 @@ export async function getCatalog(recordId: string, kind: Kind) {
   try {
     const key = id(recordId);
     const { sql } = await import("@/lib/neon-http");
-    const rows = kind === "products" ? await sql`SELECT p.product_id, p.product_name, p.sku, p.price::text AS price, p.description, p.category_id, c.category_name FROM public.product p JOIN public.category c ON c.category_id=p.category_id WHERE p.product_id=${key}` : await sql`SELECT warehouse_id, name, location, type, capacity FROM public.warehouse WHERE warehouse_id=${key}`;
+    const rows = kind === "products" ? await sql`SELECT p.product_id, p.product_name, p.sku, p.price::text AS price, p.description, p.category_id, c.category_name, to_jsonb(p)->>'created_at' AS created_at FROM public.product p JOIN public.category c ON c.category_id=p.category_id WHERE p.product_id=${key}` : await sql`SELECT warehouse_id, name, location, type, capacity, to_jsonb(warehouse)->>'created_at' AS created_at FROM public.warehouse WHERE warehouse_id=${key}`;
     if (!rows.length) return json({ error: "Record not found." }, 404);
     return json({ success: true, [kind === "products" ? "product" : "warehouse"]: rows[0] });
   } catch (error) { return errorResponse(error, kind); }

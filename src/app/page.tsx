@@ -1,13 +1,20 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
-import { getDashboard, LOW_STOCK_THRESHOLD } from "@/lib/dashboard";
+import { getDashboard, getRoleDashboard, LOW_STOCK_THRESHOLD } from "@/lib/dashboard";
+import { getAccountForSession, SESSION_COOKIE } from "@/lib/auth";
 import { Icon } from "@/components/omnilock/icons";
 import { RefreshButton } from "@/components/omnilock/shell";
 import { DataTable, EmptyState, Panel, StatCard, StatusBadge } from "@/components/omnilock/ui";
+import { displayDateTime, displayTime } from "@/lib/display-time";
 
 export default async function Home() {
   await connection();
-  const data = await getDashboard();
+  const account = await getAccountForSession((await cookies()).get(SESSION_COOKIE)?.value);
+  if (!account) redirect("/login");
+  const admin = account.role === "ADMIN";
+  const [data, roleData] = await Promise.all([getDashboard(), getRoleDashboard(account.role)]);
   const stats = data?.stats;
   const maxAvailable = Math.max(0, ...(data?.inventory.map(item => item.available) ?? []));
 
@@ -18,8 +25,8 @@ export default async function Home() {
           <p className="eyebrow">
             YOUR OPERATIONS, AT A GLANCE
           </p>
-          <h1>Dashboard overview</h1>
-          <p>Stay on top of your inventory, orders, and everything in between.</p>
+          <h1>{admin ? "Administrator Dashboard" : "Staff Operations Dashboard"}</h1>
+          <p>{admin ? "Inventory, orders, revenue, and account activity in one workspace." : "Stay on top of inventory, orders, and fulfillment work."}</p>
         </div>
         <RefreshButton />
       </div>
@@ -29,23 +36,33 @@ export default async function Home() {
         <strong>{data ? "Connected to Neon PostgreSQL" : "Database temporarily unavailable"}</strong>
         <span>
           {data
-            ? `Snapshot updated ${new Date(data.updated).toLocaleTimeString("en-IN", {
-                timeZone: "Asia/Kolkata",
-                hour: "2-digit",
-                minute: "2-digit",
-              })} IST`
+            ? `Snapshot updated ${displayTime(data.updated).time} IST`
             : "Statistics could not be loaded. Check the server connection and refresh."}
         </span>
         <span className="banner-tag">{data ? "LIVE DATABASE" : "NO DATA LOADED"}</span>
       </div>
 
       <div className="stats-grid">
-        <StatCard label="Total products" value={stats?.products} detail="Products in your catalog" icon="products" />
-        <StatCard label="Total orders" value={stats?.orders} detail="Across all sales channels" icon="orders" />
-        <StatCard label="Available stock" value={stats?.available} detail="On-hand stock minus reserved" icon="inventory" accent="teal" />
-        <StatCard label="Reserved stock" value={stats?.reserved} detail="Units currently held in inventory" icon="lock" accent="violet" />
-        <StatCard label="Active reservations" value={stats?.active} detail="Active and not yet expired" icon="reservations" accent="amber" />
-        <StatCard label="Confirmed orders" value={stats?.confirmed} detail="Orders with confirmed status" icon="fulfillment" accent="teal" />
+        {admin ? <>
+          <StatCard label="Total products" value={stats?.products} detail="Products in the catalog" icon="products" />
+          <StatCard label="Total warehouses" value={roleData?.warehouses} detail="Warehouse locations" icon="warehouses" />
+          <StatCard label="Total inventory" value={roleData?.inventoryUnits} detail={`${stats?.reserved ?? "—"} units reserved; shown in on-hand stock`} icon="inventory" accent="teal" />
+          <StatCard label="Total orders" value={stats?.orders} detail="Across all sales channels" icon="orders" />
+          <StatCard label="Successful payment revenue" value={roleData?.revenue === undefined ? undefined : `₹${Number(roleData.revenue).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} detail="Successful payments only" icon="payments" accent="teal" />
+          <StatCard label="Active reservations" value={stats?.active} detail="Active, unexpired holds" icon="reservations" accent="amber" />
+          <StatCard label="Pending fulfillments" value={roleData?.pendingFulfillment} detail="Preparing or packed" icon="fulfillment" />
+          <StatCard label="Pending shipments" value={roleData?.pendingShipments} detail="Awaiting shipment progress" icon="shipments" />
+          <StatCard label="Registered users" value={roleData?.users} detail="All application accounts" icon="customers" />
+          <StatCard label="ADMIN accounts" value={roleData?.admins} detail="Registered administrators" icon="customers" accent="violet" />
+          <StatCard label="STAFF accounts" value={roleData?.staff} detail="Registered staff" icon="customers" accent="teal" />
+        </> : <>
+          <StatCard label="Available inventory" value={stats?.available} detail={`On hand minus ${stats?.reserved ?? "—"} reserved units`} icon="inventory" accent="teal" />
+          <StatCard label="Orders requiring attention" value={roleData?.pendingOrders} detail="Pending orders" icon="orders" accent="amber" />
+          <StatCard label="Active reservations" value={stats?.active} detail="Active, unexpired holds" icon="reservations" accent="violet" />
+          <StatCard label="Pending payments" value={roleData?.pendingPayments} detail="Pending orders without successful payment" icon="payments" />
+          <StatCard label="Pending fulfillments" value={roleData?.pendingFulfillment} detail="Preparing or packed" icon="fulfillment" />
+          <StatCard label="Shipments awaiting dispatch" value={roleData?.awaitingDispatch} detail="Pending shipments with packed items" icon="shipments" accent="amber" />
+        </>}
       </div>
 
       <div className="dashboard-columns">
@@ -70,7 +87,7 @@ export default async function Home() {
                     <tr key={order.order_id}>
                       <td>
                         <strong className="order-id">#{order.order_id}</strong>
-                        <small>{order.order_date ?? "Date unavailable"}</small>
+                        <small>{displayDateTime(order.order_date)}</small>
                       </td>
                       <td>{order.customer}</td>
                       <td>
@@ -196,6 +213,7 @@ export default async function Home() {
 
           <section className="quick-panel">
             <h2>Keep operations moving</h2>
+            {admin && <Link href="/admin/users">User Management <Icon name="arrow" /></Link>}
             <Link href="/reservations">
               Review reservations <Icon name="arrow" />
             </Link>
@@ -206,6 +224,15 @@ export default async function Home() {
               Track shipments <Icon name="arrow" />
             </Link>
           </section>
+
+          {admin && !!roleData?.activity?.length && <Panel title="Recent administrative activity" subtitle="Recorded role and account-status changes">
+            <DataTable caption="Recent administrative changes" headers={["Action", "Administrator", "Account", "Date and time"]}>
+              {roleData.activity.map((entry) => <tr key={entry.audit_id}>
+                <td>{entry.event_type.replaceAll("_", " ").toLowerCase()}</td>
+                <td>{entry.actor}</td><td>{entry.target}</td><td>{displayDateTime(entry.created_at)}</td>
+              </tr>)}
+            </DataTable>
+          </Panel>}
 
         </div>
       </div>
