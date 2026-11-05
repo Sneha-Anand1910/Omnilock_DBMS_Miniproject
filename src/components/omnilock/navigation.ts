@@ -1,6 +1,7 @@
 export const navigation = [
   { slug: "", label: "Dashboard", icon: "dashboard", group: "WORKSPACE" },
   { slug: "inventory", label: "Inventory", icon: "inventory" },
+  { slug: "analytics/inventory", label: "Inventory Analytics", icon: "inventory" },
   { slug: "products", label: "Products", icon: "products" },
   { slug: "warehouses", label: "Warehouses", icon: "warehouses" },
   { slug: "orders", label: "Orders", icon: "orders", group: "OPERATIONS" },
